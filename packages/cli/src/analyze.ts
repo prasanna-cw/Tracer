@@ -35,6 +35,7 @@ async function main(argv: string[]): Promise<void> {
       `edges       ${s.edgeCount}`,
       `unresolved  ${s.unresolvedCount}`,
       `external    ${s.externalCount}`,
+      `assets      ${s.assetCount}`,
       `cycles      ${s.cycleCount} (${result.cycleEdges} edges)`,
       `time        ${ms} ms`,
       `wrote       ${values.out}`,

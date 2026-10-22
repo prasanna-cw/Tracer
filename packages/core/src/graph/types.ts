@@ -20,6 +20,7 @@ export const codeGraphSummarySchema = z.object({
   edgeCount: z.number().int(),
   unresolvedCount: z.number().int(), // relative or alias imports that point nowhere
   externalCount: z.number().int(), // package/builtin imports ("react", "node:fs")
+  assetCount: z.number().int(), // non-code files that exist ("./app.css", "./data.json")
   cycleCount: z.number().int(), // strongly connected components with more than one file
   unresolved: z.array(z.object({ from: z.string(), specifier: z.string() })),
   warnings: z.array(z.string()),

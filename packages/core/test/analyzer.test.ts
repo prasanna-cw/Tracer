@@ -1,15 +1,27 @@
 import { describe, expect, it } from "vitest";
 import { analyzeRepo, parseGitignore, type FileSystemHost } from "../src/analyzer";
 
-/** In-memory FileSystemHost: proves the analyzer needs nothing but the port. */
-function memoryFs(files: Record<string, string>, root = "/repo"): FileSystemHost {
+/**
+ * In-memory FileSystemHost: proves the analyzer needs nothing but the port.
+ * `links` maps a symlink directory to its target (both relative to root), like npm workspaces in node_modules.
+ */
+function memoryFs(files: Record<string, string>, links: Record<string, string> = {}, root = "/repo"): FileSystemHost {
   const abs = new Map(Object.entries(files).map(([p, c]) => [`${root}/${p}`, c]));
   const dirs = new Set<string>([root]);
-  for (const p of abs.keys()) for (let d = p.slice(0, p.lastIndexOf("/")); d.length >= root.length; d = d.slice(0, d.lastIndexOf("/"))) dirs.add(d);
+  const linkDirs = Object.keys(links).map((l) => `${root}/${l}/x`); // the link itself and its parents are directories
+  for (const p of [...abs.keys(), ...linkDirs]) for (let d = p.slice(0, p.lastIndexOf("/")); d.length >= root.length; d = d.slice(0, d.lastIndexOf("/"))) dirs.add(d);
+  const real = (p: string): string => {
+    for (const [from, to] of Object.entries(links)) {
+      const link = `${root}/${from}`;
+      if (p === link || p.startsWith(`${link}/`)) return `${root}/${to}${p.slice(link.length)}`;
+    }
+    return p;
+  };
   return {
-    readFile: (p) => abs.get(p),
-    fileExists: (p) => abs.has(p),
-    directoryExists: (p) => dirs.has(p),
+    readFile: (p) => abs.get(real(p)),
+    fileExists: (p) => abs.has(real(p)),
+    directoryExists: (p) => dirs.has(real(p)),
+    realpath: real,
     readDirectory: (p) => {
       const names = new Map<string, boolean>();
       for (const f of [...abs.keys(), ...dirs]) {
@@ -68,6 +80,28 @@ describe("analyzeRepo (in-memory)", () => {
     expect(analyzeRepo(memoryFs({}), "/repo").graph.summary).toMatchObject({ fileCount: 0, edgeCount: 0, cycleCount: 0 });
     const g = analyzeRepo(memoryFs({ "a.ts": "export const a = 1;", "b.ts": "" }), "/repo").graph;
     expect([g.summary.fileCount, g.summary.edgeCount]).toEqual([2, 0]);
+  });
+
+  it("follows npm workspace symlinks back into the repo (cross-package edges are internal)", () => {
+    const files = {
+      "packages/lib/package.json": JSON.stringify({ name: "@x/lib", exports: { ".": "./src/index.ts" } }),
+      "packages/lib/src/index.ts": "export const x = 1;",
+      "packages/app/src/main.ts": 'import { x } from "@x/lib"; import "react";',
+    };
+    const g = analyzeRepo(memoryFs(files, { "node_modules/@x/lib": "packages/lib" }), "/repo").graph;
+    expect(g.edges).toEqual([{ source: "packages/app/src/main.ts", target: "packages/lib/src/index.ts" }]);
+    expect([g.summary.externalCount, g.summary.unresolvedCount]).toEqual([1, 0]); // only react
+  });
+
+  it("counts existing non-code imports as assets, not unresolved", () => {
+    const files = {
+      "src/main.ts": 'import "./app.css"; import data from "../data.json"; import "./missing.css";',
+      "src/app.css": "body {}",
+      "data.json": "{}",
+    };
+    const g = analyzeRepo(memoryFs(files), "/repo").graph;
+    expect(g.summary).toMatchObject({ assetCount: 2, unresolvedCount: 1, externalCount: 0 });
+    expect(g.summary.unresolved).toEqual([{ from: "src/main.ts", specifier: "./missing.css" }]);
   });
 
   it("reports a broken tsconfig and carries on with defaults", () => {

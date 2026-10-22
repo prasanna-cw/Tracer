@@ -16,6 +16,7 @@ describe("analyzer on samples/demo-repo", () => {
       edgeCount: 29,
       unresolvedCount: 3,
       externalCount: 5,
+      assetCount: 0,
       cycleCount: 1,
     });
     expect(r.cycleEdges).toBe(3);

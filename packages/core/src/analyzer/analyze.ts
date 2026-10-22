@@ -61,17 +61,24 @@ export function analyzeRepo(fs: FileSystemHost, root: string): AnalyzeResult {
   const unresolved: { from: string; specifier: string }[] = [];
   let unresolvedCount = 0;
   let externalCount = 0;
+  let assetCount = 0;
 
   for (const [abs, { specifiers }] of parsed) {
     for (const spec of specifiers) {
       const resolved = ts.resolveModuleName(spec, abs, options, host, cache).resolvedModule;
-      const target = resolved && !resolved.isExternalLibraryImport ? resolved.resolvedFileName : undefined;
-      if (target && parsed.has(target)) {
+      // Ours if it lands on a file we parsed, whatever the route: a workspace package resolves through a
+      // node_modules symlink and TypeScript flags it as an external library, but its real path is in this repo.
+      const target = resolved && parsed.has(resolved.resolvedFileName) ? resolved.resolvedFileName : undefined;
+      const isPath = spec.startsWith(".") || spec.startsWith("/");
+      const onDisk = resolved?.resolvedFileName ?? (isPath ? resolvePath(abs, spec) : undefined);
+      if (target) {
         if (target !== abs) {
           const e = { source: rel(abs), target: rel(target) };
           edges.set(`${e.source}\u0000${e.target}`, e);
         }
-      } else if (spec.startsWith(".") || spec.startsWith("/") || aliasMatchers.some((m) => m(spec))) {
+      } else if (onDisk && !SOURCE_FILE.test(onDisk) && fs.fileExists(onDisk)) {
+        assetCount++; // ./app.css, ./data.json, ./logo.svg: exists, just not code
+      } else if (isPath || aliasMatchers.some((m) => m(spec))) {
         unresolvedCount++;
         if (unresolved.length < MAX_UNRESOLVED_LISTED) unresolved.push({ from: rel(abs), specifier: spec });
       } else {
@@ -112,6 +119,7 @@ export function analyzeRepo(fs: FileSystemHost, root: string): AnalyzeResult {
         edgeCount: edgeList.length,
         unresolvedCount,
         externalCount,
+        assetCount,
         cycleCount: cycles.length,
         unresolved,
         warnings,
@@ -119,6 +127,16 @@ export function analyzeRepo(fs: FileSystemHost, root: string): AnalyzeResult {
     },
     cycleEdges: cycleEdgeKeys(cycles, edgeList).size,
   };
+}
+
+/** `spec` relative to the file importing it, with `.` and `..` folded (absolute `/x` is taken as-is). */
+function resolvePath(fromFile: string, spec: string): string {
+  const base = spec.startsWith("/") ? [] : fromFile.split("/").slice(0, -1);
+  for (const part of spec.split("/")) {
+    if (part === "..") base.pop();
+    else if (part && part !== ".") base.push(part);
+  }
+  return (spec.startsWith("/") ? "/" : "") + base.join("/");
 }
 
 function walk(fs: FileSystemHost, root: string, ignore: IgnoreMatcher): string[] {
@@ -150,6 +168,7 @@ function gitignore(fs: FileSystemHost, root: string, warnings: string[]): Ignore
 function compilerOptions(fs: FileSystemHost, root: string, warnings: string[]): ts.CompilerOptions {
   const defaults: ts.CompilerOptions = {
     allowJs: true,
+    resolveJsonModule: true,
     jsx: ts.JsxEmit.Preserve,
     module: ts.ModuleKind.ESNext,
     moduleResolution: ts.ModuleResolutionKind.Bundler,
