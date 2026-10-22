@@ -19,6 +19,11 @@
   --dim-opacity: 0.25;
   --glow: none;
 
+  /* Graph view (canvas reads these): folder palette, edges, cycles. Mid-tones that read on the light background. */
+  --graph-1: #6b5fc7; --graph-2: #c97a3a; --graph-3: #2f8ea3; --graph-4: #3f8f58; --graph-5: #a88a1c; --graph-6: #b8587a;
+  --graph-edge: rgba(60, 58, 52, 0.22);
+  --graph-cycle: #d33c3c;
+
   --cat-plain-fill: #ffffff;    --cat-plain-stroke: #d6d3ca;   --cat-plain-text: #24231f;
   --cat-layer-fill: #f0ecfd;    --cat-layer-stroke: #c7bcf1;   --cat-layer-text: #46378a;
   --cat-entity-fill: #fdf0e6;   --cat-entity-stroke: #efc6a4;  --cat-entity-text: #7f4417;

@@ -1,7 +1,10 @@
 export type Theme = "clean" | "obsidian";
 export type SaveState = "idle" | "saving" | "saved";
+export type View = "diagram" | "graph";
 
 type Props = {
+  view: View;
+  onView: (v: View) => void;
   diagrams: { id: string; title: string }[];
   currentId: string | null;
   onOpen: (id: string) => void;
@@ -28,54 +31,66 @@ export function Toolbar(p: Props) {
   return (
     <header className="toolbar" role="toolbar" aria-label="Diagram">
       <strong className="brand">CodeMap</strong>
-      <select aria-label="Diagram" value={p.currentId ?? ""} onChange={(e) => p.onOpen(e.target.value)}>
-        {p.diagrams.map((d) => (
-          <option key={d.id} value={d.id}>
-            {d.title}
-          </option>
+      <div className="group tabs" role="tablist" aria-label="View">
+        {(["diagram", "graph"] as const).map((v) => (
+          <button key={v} type="button" role="tab" aria-selected={p.view === v} onClick={() => p.onView(v)}>
+            {v === "diagram" ? "Diagram" : "Graph"}
+          </button>
         ))}
-      </select>
-
-      <div className="group">
-        <button type="button" onClick={p.onUndo} disabled={!p.canUndo} title="Undo (Ctrl+Z)">
-          Undo
-        </button>
-        <button type="button" onClick={p.onRedo} disabled={!p.canRedo} title="Redo (Ctrl+Shift+Z)">
-          Redo
-        </button>
-        <button type="button" onClick={p.onSave} title="Save (Ctrl+S)" disabled={p.saveState === "saving"}>
-          {p.dirty && <span className="dirty-dot" aria-label="Unsaved changes" />}
-          Save
-        </button>
-        <span className="save-status" aria-live="polite">
-          {p.saveState === "saving" ? "Saving…" : p.saveState === "saved" ? "Saved" : ""}
-        </span>
       </div>
 
-      <div className="group">
-        <span className="muted">Export</span>
-        <button type="button" onClick={() => p.onExport("canvas")} title="JSON Canvas for Obsidian">
-          .canvas
-        </button>
-        <button type="button" onClick={() => p.onExport("svg")} title="SVG of the current view">
-          SVG
-        </button>
-        <button type="button" onClick={() => p.onExport("png")} title="PNG of the current view">
-          PNG
-        </button>
-      </div>
+      {p.view === "diagram" && (
+        <>
+          <select aria-label="Diagram" value={p.currentId ?? ""} onChange={(e) => p.onOpen(e.target.value)}>
+            {p.diagrams.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.title}
+              </option>
+            ))}
+          </select>
 
-      <div className="group">
-        <button type="button" aria-pressed={p.walkthrough} onClick={p.onToggleWalkthrough} disabled={!p.hasSteps}>
-          Walkthrough
-        </button>
-        <button type="button" aria-pressed={p.snap} onClick={p.onToggleSnap}>
-          Snap
-        </button>
-        <button type="button" aria-pressed={p.minimap} onClick={p.onToggleMinimap}>
-          Minimap
-        </button>
-      </div>
+          <div className="group">
+            <button type="button" onClick={p.onUndo} disabled={!p.canUndo} title="Undo (Ctrl+Z)">
+              Undo
+            </button>
+            <button type="button" onClick={p.onRedo} disabled={!p.canRedo} title="Redo (Ctrl+Shift+Z)">
+              Redo
+            </button>
+            <button type="button" onClick={p.onSave} title="Save (Ctrl+S)" disabled={p.saveState === "saving"}>
+              {p.dirty && <span className="dirty-dot" aria-label="Unsaved changes" />}
+              Save
+            </button>
+            <span className="save-status" aria-live="polite">
+              {p.saveState === "saving" ? "Saving…" : p.saveState === "saved" ? "Saved" : ""}
+            </span>
+          </div>
+
+          <div className="group">
+            <span className="muted">Export</span>
+            <button type="button" onClick={() => p.onExport("canvas")} title="JSON Canvas for Obsidian">
+              .canvas
+            </button>
+            <button type="button" onClick={() => p.onExport("svg")} title="SVG of the current view">
+              SVG
+            </button>
+            <button type="button" onClick={() => p.onExport("png")} title="PNG of the current view">
+              PNG
+            </button>
+          </div>
+
+          <div className="group">
+            <button type="button" aria-pressed={p.walkthrough} onClick={p.onToggleWalkthrough} disabled={!p.hasSteps}>
+              Walkthrough
+            </button>
+            <button type="button" aria-pressed={p.snap} onClick={p.onToggleSnap}>
+              Snap
+            </button>
+            <button type="button" aria-pressed={p.minimap} onClick={p.onToggleMinimap}>
+              Minimap
+            </button>
+          </div>
+        </>
+      )}
 
       <div className="group theme-switch" role="radiogroup" aria-label="Theme">
         {(["clean", "obsidian"] as const).map((t) => (

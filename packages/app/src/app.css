@@ -180,3 +180,35 @@ button, select, textarea { font: inherit; color: inherit; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }
+
+/* ---- graph view ------------------------------------------------------------------ */
+.toolbar .tabs button[aria-selected="true"] { background: color-mix(in srgb, var(--accent) 16%, var(--surface)); border-color: var(--accent); }
+.graph-view { flex: 1; position: relative; display: flex; min-width: 0; }
+.graph-canvas { flex: 1; position: relative; min-width: 0; overflow: hidden; background: var(--bg); }
+.graph-canvas canvas { display: block; position: absolute; inset: 0; touch-action: none; }
+.graph-controls {
+  position: absolute; top: 12px; left: 12px; z-index: 5; width: 260px; max-height: calc(100% - 24px); overflow: auto;
+  display: flex; flex-direction: column; gap: 10px; padding: 12px;
+  background: color-mix(in srgb, var(--surface) 94%, transparent); border: 1px solid var(--border); border-radius: 10px; font-size: 13px;
+}
+.graph-controls fieldset { border: none; border-top: 1px solid var(--border); margin: 0; padding: 8px 0 0; display: flex; flex-direction: column; gap: 6px; }
+.graph-controls legend { padding: 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.graph-controls input[type="search"] { padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--text); }
+.graph-controls .field { margin: 0; }
+.graph-controls .check { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.graph-controls .range { display: flex; flex-direction: column; gap: 2px; }
+.graph-controls .range input { width: 100%; accent-color: var(--accent); }
+.graph-controls .row { display: flex; gap: 6px; }
+.graph-controls button { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+.graph-controls button:hover { border-color: var(--accent); }
+.graph-stats { display: flex; flex-direction: column; gap: 2px; }
+.folders { display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow: auto; }
+.swatch { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.side-panel h3 { font-size: 13px; margin: 14px 0 4px; }
+.file-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.side-panel .link-btn { all: unset; cursor: pointer; color: var(--accent); overflow-wrap: anywhere; font-size: 12px; }
+.side-panel .link-btn:hover { text-decoration: underline; }
+.side-panel .link-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+@media (max-width: 720px) {
+  .graph-controls { top: auto; bottom: 12px; left: 12px; right: 12px; width: auto; max-height: 45%; }
+}

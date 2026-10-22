@@ -18,6 +18,11 @@
   --dim-opacity: 0.25;
   --glow: 0 0 0 1px var(--c-stroke), 0 0 14px color-mix(in srgb, var(--c-stroke) 45%, transparent);
 
+  /* Graph view (canvas reads these): folder palette, edges, cycles. Light tones that read on the dark background. */
+  --graph-1: #a88bfa; --graph-2: #e0a070; --graph-3: #6cc4d6; --graph-4: #7ccf94; --graph-5: #e3cd6b; --graph-6: #e58fa5;
+  --graph-edge: rgba(220, 221, 222, 0.16);
+  --graph-cycle: #ff6b6b;
+
   --cat-plain-fill: #262626;    --cat-plain-stroke: #444444;   --cat-plain-text: #dcddde;
   --cat-layer-fill: #29253a;    --cat-layer-stroke: #6f60aa;   --cat-layer-text: #cfc4ff;
   --cat-entity-fill: #312720;   --cat-entity-stroke: #a06d42;  --cat-entity-text: #f3c7a1;

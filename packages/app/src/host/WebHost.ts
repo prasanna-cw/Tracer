@@ -11,7 +11,7 @@ import {
 import type { HostAdapter } from "./HostAdapter";
 
 // Samples are bundled at build time (and hot-reloaded in dev), so the prototype needs no server.
-const SAMPLES = import.meta.glob<string>("../../../../samples/*.{json,canvas}", { query: "?raw", import: "default" });
+const SAMPLES = import.meta.glob<string>(["../../../../samples/*.diagram.json", "../../../../samples/*.canvas"], { query: "?raw", import: "default" });
 const sampleId = (path: string): string => path.slice(path.lastIndexOf("/") + 1);
 const loaders = new Map(Object.entries(SAMPLES).map(([path, load]) => [sampleId(path), load]));
 
@@ -69,8 +69,16 @@ export class WebHost implements HostAdapter {
     await w.close();
   }
 
-  /** packages/app/public/graph.json (from `npm run analyze`) if present, else the committed demo graph. */
-  async loadGraph(): Promise<CodeGraph> {
+  private graph: Promise<CodeGraph> | undefined;
+
+  /** packages/app/public/graph.json (from `npm run analyze`) if present, else the committed demo graph. Loaded once per page. */
+  loadGraph(): Promise<CodeGraph> {
+    this.graph ??= this.fetchGraph();
+    this.graph.catch(() => (this.graph = undefined)); // a failed load can be retried
+    return this.graph;
+  }
+
+  private async fetchGraph(): Promise<CodeGraph> {
     const res = await fetch("/graph.json").catch(() => undefined);
     // Vite's dev server answers unknown paths with index.html (200), so check the content type, not just the status.
     if (res?.ok && res.headers.get("content-type")?.includes("json")) {

@@ -1,0 +1,63 @@
+import { isTestFile, localGraph, type CodeGraph, type CodeGraphNode } from "@codemap/core";
+
+export type GraphFilters = {
+  hideOrphans: boolean;
+  hideTests: boolean;
+  hiddenGroups: ReadonlySet<string>;
+  /** Local graph mode: only `id` and its neighbors up to `depth` hops. */
+  local: { id: string; depth: number } | null;
+};
+
+export const defaultFilters: GraphFilters = { hideOrphans: false, hideTests: false, hiddenGroups: new Set(), local: null };
+
+/**
+ * Color/filter group of a file: its top-level folder, measured below the folder every file shares.
+ * (A repo whose code all lives in `src/` would otherwise be one color.) Root files are "(root)".
+ */
+export function groupResolver(paths: readonly string[]): (path: string) => string {
+  const dirs = paths.map((p) => p.split("/").slice(0, -1));
+  let common = 0;
+  if (dirs.length) {
+    const first = dirs[0] ?? [];
+    while (common < first.length && dirs.every((d) => d[common] === first[common])) common++;
+  }
+  return (path) => {
+    const segs = path.split("/");
+    return segs.length - 1 > common ? (segs[common] ?? "(root)") : "(root)";
+  };
+}
+
+export function visibleNodeIds(graph: CodeGraph, f: GraphFilters, groupOf: (path: string) => string): Set<string> {
+  const local = f.local ? localGraph(f.local.id, graph.edges, f.local.depth) : null;
+  const ids = new Set<string>();
+  for (const n of graph.nodes) {
+    if (local && !local.has(n.id)) continue;
+    if (f.local?.id === n.id) {
+      ids.add(n.id); // the focus of a local graph always stays visible
+      continue;
+    }
+    if (f.hideOrphans && n.inDegree + n.outDegree === 0) continue;
+    if (f.hideTests && isTestFile(n.path)) continue;
+    if (f.hiddenGroups.has(groupOf(n.path))) continue;
+    ids.add(n.id);
+  }
+  return ids;
+}
+
+/** Case-insensitive path substring. Empty query matches nothing (no highlight). */
+export function searchMatches(nodes: readonly CodeGraphNode[], query: string): string[] {
+  const q = query.trim().toLowerCase();
+  return q ? nodes.filter((n) => n.path.toLowerCase().includes(q)).map((n) => n.id) : [];
+}
+
+/** Stable color index per group: groups sorted by name, so colors don't shuffle between runs. */
+export function groupColors(groups: Iterable<string>, palette: readonly string[]): Map<string, string> {
+  return new Map([...new Set(groups)].sort().map((g, i) => [g, palette[i % palette.length] ?? "#888"]));
+}
+
+export function neighborsOf(graph: CodeGraph, id: string): { imports: string[]; importedBy: string[] } {
+  return {
+    imports: graph.edges.filter((e) => e.source === id).map((e) => e.target),
+    importedBy: graph.edges.filter((e) => e.target === id).map((e) => e.source),
+  };
+}
