@@ -4,7 +4,7 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   // samples/ holds fixtures (the demo repo has a deliberate syntax error), not our code.
-  { ignores: ["**/dist/**", "**/node_modules/**", "**/coverage/**", "samples/**"] },
+  { ignores: ["**/dist/**", "**/node_modules/**", "**/coverage/**", "**/.vscode-test/**", "samples/**"] },
   js.configs.recommended,
   ...tseslint.configs.strict,
   {

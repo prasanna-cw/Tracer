@@ -1,0 +1,13 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "codemap: build extension",
+      "type": "npm",
+      "script": "build",
+      "path": "packages/extension",
+      "problemMatcher": ["$tsc"],
+      "group": "build"
+    }
+  ]
+}

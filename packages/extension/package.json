@@ -1,0 +1,86 @@
+{
+  "name": "codemap-studio-vscode",
+  "displayName": "CodeMap Studio",
+  "description": "Diagram canvas (JSON Canvas compatible) and import graph for TypeScript/JavaScript. Runs locally: no network, no telemetry.",
+  "version": "0.0.1",
+  "publisher": "todo-publisher",
+  "license": "UNLICENSED",
+  "private": true,
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Visualization",
+    "Other"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onCommand:codemap.openGraph",
+    "onCommand:codemap.openDiagram",
+    "onCustomEditor:codemap.diagramEditor"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "codemap.openGraph",
+        "title": "Open Graph View",
+        "category": "CodeMap"
+      },
+      {
+        "command": "codemap.openDiagram",
+        "title": "Open Diagram",
+        "category": "CodeMap"
+      }
+    ],
+    "customEditors": [
+      {
+        "viewType": "codemap.diagramEditor",
+        "displayName": "CodeMap Diagram",
+        "selector": [
+          {
+            "filenamePattern": "*.diagram.json"
+          },
+          {
+            "filenamePattern": "*.canvas"
+          }
+        ],
+        "priority": "default"
+      }
+    ],
+    "configuration": {
+      "title": "CodeMap",
+      "properties": {
+        "codemap.theme": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "clean",
+            "obsidian"
+          ],
+          "enumDescriptions": [
+            "Follow the VS Code theme: Clean for light themes, Obsidian for dark ones.",
+            "Always the light Clean theme.",
+            "Always the dark Obsidian theme."
+          ],
+          "default": "auto",
+          "description": "Theme of CodeMap diagrams and the graph view."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node build.mjs",
+    "package": "npm run build && vsce package --no-dependencies --allow-missing-repository --skip-license --out codemap-studio.vsix",
+    "test:vscode": "npm run build && tsx test/e2e/runTests.ts"
+  },
+  "dependencies": {
+    "@codemap/cli": "*",
+    "@codemap/core": "*"
+  },
+  "devDependencies": {
+    "@types/vscode": "1.90.0",
+    "@vscode/test-electron": "2.5.2",
+    "@vscode/vsce": "3.9.2",
+    "esbuild": "^0.28.0"
+  }
+}

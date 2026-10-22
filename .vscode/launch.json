@@ -1,0 +1,27 @@
+{
+  // F5: build the extension, then open samples/demo-repo in an Extension Development Host.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run CodeMap extension",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": ["--extensionDevelopmentPath=${workspaceFolder}/packages/extension", "${workspaceFolder}/samples/demo-repo"],
+      "outFiles": ["${workspaceFolder}/packages/extension/dist/**/*.js"],
+      "preLaunchTask": "codemap: build extension"
+    },
+    {
+      "name": "CodeMap integration tests",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}/packages/extension",
+        "--extensionTestsPath=${workspaceFolder}/packages/extension/dist/test/suite.js",
+        "--disable-extensions",
+        "${workspaceFolder}/samples/demo-repo"
+      ],
+      "outFiles": ["${workspaceFolder}/packages/extension/dist/**/*.js"],
+      "preLaunchTask": "codemap: build extension"
+    }
+  ]
+}

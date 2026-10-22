@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -p tsconfig.json && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:webview": "vite build --mode webview --base ./ --outDir ../extension/dist/webview --emptyOutDir"
   },
   "dependencies": {
     "@codemap/core": "*",

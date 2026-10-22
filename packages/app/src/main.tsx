@@ -31,7 +31,8 @@ async function boot(el: HTMLElement): Promise<void> {
     mount(el, () => host, env, init.theme);
     return;
   }
-  // Loaded lazily: the samples it bundles are never fetched inside VS Code.
+  // Compiled out of the webview build (`--mode webview`), along with the samples WebHost bundles.
+  if (import.meta.env.MODE === "webview") throw new Error("this build only runs inside VS Code");
   const { WebHost } = await import("./host/WebHost");
   mount(el, (notify) => new WebHost(notify), { kind: "web" });
 }

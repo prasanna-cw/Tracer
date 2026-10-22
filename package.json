@@ -17,7 +17,9 @@
     "analyze": "npm run analyze -w @codemap/cli --",
     "export:canvas": "npm run export:canvas -w @codemap/cli --",
     "import:canvas": "npm run import:canvas -w @codemap/cli --",
-    "analyze:demo": "npm run analyze -- --root samples/demo-repo --out samples/demo-graph.json"
+    "analyze:demo": "npm run analyze -- --root samples/demo-repo --out samples/demo-graph.json",
+    "package": "npm run package -w packages/extension",
+    "test:vscode": "npm run test:vscode -w packages/extension"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

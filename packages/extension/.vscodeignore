@@ -1,0 +1,7 @@
+# Ship only the built extension, the webview bundle and the manifest/readme.
+**
+!dist/extension.js
+!dist/analyzerWorker.js
+!dist/webview/**
+!package.json
+!README.md
