@@ -12,9 +12,11 @@ export const defaultFilters: GraphFilters = { hideOrphans: false, hideTests: fal
 
 /**
  * Color/filter group of a file: its top-level folder, measured below the folder every file shares.
- * (A repo whose code all lives in `src/` would otherwise be one color.) Root files are "(root)".
+ * (A repo whose code all lives in `src/` would otherwise be one color.) In a monorepo, the first two
+ * levels (`packages/app`), so each package gets its own color. Files above that depth are "(root)" or
+ * their single folder.
  */
-export function groupResolver(paths: readonly string[]): (path: string) => string {
+export function groupResolver(paths: readonly string[], monorepo = false): (path: string) => string {
   const dirs = paths.map((p) => p.split("/").slice(0, -1));
   let common = 0;
   if (dirs.length) {
@@ -22,8 +24,9 @@ export function groupResolver(paths: readonly string[]): (path: string) => strin
     while (common < first.length && dirs.every((d) => d[common] === first[common])) common++;
   }
   return (path) => {
-    const segs = path.split("/");
-    return segs.length - 1 > common ? (segs[common] ?? "(root)") : "(root)";
+    const dirs = path.split("/").slice(common, -1); // folders below the shared prefix
+    if (!dirs.length) return "(root)";
+    return monorepo && dirs.length >= 2 ? `${dirs[0]}/${dirs[1]}` : (dirs[0] ?? "(root)");
   };
 }
 

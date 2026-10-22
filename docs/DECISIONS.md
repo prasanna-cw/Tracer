@@ -126,7 +126,8 @@ Each entry: what, why, alternative considered.
   - **unresolved:** a relative, absolute or tsconfig-alias specifier that points nowhere. Up to 200 are listed with their file.
   - **external:** everything else (`react`, `node:fs`).
 - **Why:** The brief lumped external and unresolved together. Separating them makes `unresolvedCount` mean "broken", which is the number worth watching. Both bugs this rule fixes (workspaces counted as external, CSS counted as unresolved) were found by analyzing this repo.
-- **Limits (`ponytail:` in code):** only the root `tsconfig.json` and root `.gitignore` are read, and gitignore negation (`!x`) is not supported (it is reported as a warning). In a monorepo whose packages have their own `paths`, aliases inside those packages show up as external. Upgrade path: per-directory tsconfig lookup, and the `ignore` package.
+- **tsconfig:** every file resolves against its **nearest** `tsconfig.json` (walking up to the analyzed root, `extends` honored), so per-package `paths` in a monorepo work. Lookups are cached per directory, and parsed configs (with their own module-resolution cache) per tsconfig. No tsconfig on the way up means defaults (Bundler resolution, JS allowed). Fixture: `samples/monorepo`, where two packages map the same `~/*` alias to their own `src/`. Project references are not followed as such; each package's own tsconfig is what counts.
+- **Limits (`ponytail:` in code):** only the root `.gitignore` is read, and its negation (`!x`) is not supported (reported as a warning). Upgrade path: the `ignore` package.
 
 ## D21. Deterministic, shareable graph.json
 
@@ -136,7 +137,7 @@ Each entry: what, why, alternative considered.
 
 - **What:** One `<canvas>`. Edges are batched into one path per style (plain, cycle, focused) and nodes into one path per color/brightness bucket. Labels are drawn in screen space and culled to the viewport, and arrowheads appear from zoom 1.2. Hit testing uses a d3-quadtree, rebuilt lazily after the layout moves. The d3-force simulation runs in `layout.worker.ts` (`layoutEngine.ts` is DOM-free and unit-tested) and posts a `Float32Array` of positions per frame, plus a generation number so stale frames are dropped.
 - **Why the worker:** At 2,000 files / 6,000 imports one tick costs ~25 ms (Barnes-Hut repulsion 14 ms, collision 7 ms). On the main thread the view ran at ~21 fps while laying out. With the worker, measured in Chrome via Playwright with a synthetic graph of that size: **55 fps during layout, 61 fps pan/zoom/hover/node-drag**. Collision is skipped above 1,000 nodes (layout reads fine without it, and it settles faster).
-- **Colors:** by top-level folder, measured below the folder every file shares (a repo that is all `src/` would otherwise be one color). Six theme tokens (`--graph-1..6`) cycle in sorted folder order.
+- **Colors:** by top-level folder, measured below the folder every file shares (a repo that is all `src/` would otherwise be one color). In a **monorepo** (the analyzer found `package.json` files below the root, listed in `graph.packages`), by the first **two** levels (`packages/app`), so each package gets its own color. Six theme tokens (`--graph-1..6`) cycle in natural folder order.
 - **Alternative:** SVG (too slow past a few hundred nodes); WebGL (unnecessary at this scale; revisit past ~20k edges).
 
 ## D23. Demo repo as the permanent fixture

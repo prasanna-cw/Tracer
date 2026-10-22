@@ -23,9 +23,36 @@ export function analyzeRepo(fs: FileSystemHost, root: string): AnalyzeResult {
   const warnings: string[] = [];
   const rel = (abs: string): string => abs.slice(root.length + 1);
 
-  const options = compilerOptions(fs, root, warnings);
   const ignore = gitignore(fs, root, warnings);
-  const files = walk(fs, root, ignore);
+  const { files, packages } = walk(fs, root, ignore);
+
+  // Each file resolves against its nearest tsconfig.json (per-package `paths`/`extends` in a monorepo),
+  // falling back to defaults when there is none up to the root. Lookups and parsed configs are cached.
+  type Config = { options: ts.CompilerOptions; cache: ts.ModuleResolutionCache; aliases: ((spec: string) => boolean)[] };
+  const configs = new Map<string, Config>(); // by tsconfig path; "" = none found
+  const nearest = new Map<string, string>(); // directory -> tsconfig path or ""
+  const configPathFor = (dir: string): string => {
+    const known = nearest.get(dir);
+    if (known !== undefined) return known;
+    const candidate = joinPath(dir, "tsconfig.json");
+    const found = fs.fileExists(candidate) ? candidate : dir.length > root.length ? configPathFor(dirname(dir)) : "";
+    nearest.set(dir, found);
+    return found;
+  };
+  const configFor = (file: string): Config => {
+    const path = configPathFor(dirname(file));
+    let config = configs.get(path);
+    if (!config) {
+      const options = compilerOptions(fs, path, path ? rel(path) : "", warnings);
+      config = {
+        options,
+        cache: ts.createModuleResolutionCache(path ? dirname(path) : root, (f) => f, options),
+        aliases: Object.keys(options.paths ?? {}).map(aliasMatcher),
+      };
+      configs.set(path, config);
+    }
+    return config;
+  };
 
   // Pass 1: parse one file at a time and keep only its specifiers; the AST is dropped right away.
   const parsed = new Map<string, { specifiers: string[]; loc: number }>();
@@ -55,8 +82,6 @@ export function analyzeRepo(fs: FileSystemHost, root: string): AnalyzeResult {
     getCurrentDirectory: () => root,
     getDirectories: (p) => fs.readDirectory(p).flatMap((e) => (e.isDirectory ? [e.name] : [])),
   };
-  const cache = ts.createModuleResolutionCache(root, (f) => f, options);
-  const aliasMatchers = Object.keys(options.paths ?? {}).map(aliasMatcher);
   const edges = new Map<string, CodeGraphEdge>();
   const unresolved: { from: string; specifier: string }[] = [];
   let unresolvedCount = 0;
@@ -64,6 +89,7 @@ export function analyzeRepo(fs: FileSystemHost, root: string): AnalyzeResult {
   let assetCount = 0;
 
   for (const [abs, { specifiers }] of parsed) {
+    const { options, cache, aliases } = configFor(abs);
     for (const spec of specifiers) {
       const resolved = ts.resolveModuleName(spec, abs, options, host, cache).resolvedModule;
       // Ours if it lands on a file we parsed, whatever the route: a workspace package resolves through a
@@ -78,7 +104,7 @@ export function analyzeRepo(fs: FileSystemHost, root: string): AnalyzeResult {
         }
       } else if (onDisk && !SOURCE_FILE.test(onDisk) && fs.fileExists(onDisk)) {
         assetCount++; // ./app.css, ./data.json, ./logo.svg: exists, just not code
-      } else if (isPath || aliasMatchers.some((m) => m(spec))) {
+      } else if (isPath || aliases.some((m) => m(spec))) {
         unresolvedCount++;
         if (unresolved.length < MAX_UNRESOLVED_LISTED) unresolved.push({ from: rel(abs), specifier: spec });
       } else {
@@ -111,6 +137,7 @@ export function analyzeRepo(fs: FileSystemHost, root: string): AnalyzeResult {
     graph: {
       version: 1,
       root: root.slice(root.lastIndexOf("/") + 1),
+      packages,
       nodes,
       edges: edgeList,
       summary: {
@@ -139,10 +166,15 @@ function resolvePath(fromFile: string, spec: string): string {
   return (spec.startsWith("/") ? "/" : "") + base.join("/");
 }
 
-function walk(fs: FileSystemHost, root: string, ignore: IgnoreMatcher): string[] {
+const dirname = (p: string): string => p.slice(0, p.lastIndexOf("/"));
+
+/** Source files to analyze, and the folders below the root that hold a package.json (monorepo packages). */
+function walk(fs: FileSystemHost, root: string, ignore: IgnoreMatcher): { files: string[]; packages: string[] } {
   const out: string[] = [];
+  const packages: string[] = [];
   const visit = (dir: string, relDir: string) => {
     const entries = fs.readDirectory(dir).sort((a, b) => cmp(a.name, b.name));
+    if (relDir && entries.some((e) => !e.isDirectory && e.name === "package.json")) packages.push(relDir);
     for (const e of entries) {
       const relPath = relDir ? `${relDir}/${e.name}` : e.name;
       if (e.isDirectory) {
@@ -153,7 +185,7 @@ function walk(fs: FileSystemHost, root: string, ignore: IgnoreMatcher): string[]
     }
   };
   visit(root, "");
-  return out;
+  return { files: out, packages };
 }
 
 function gitignore(fs: FileSystemHost, root: string, warnings: string[]): IgnoreMatcher {
@@ -164,12 +196,8 @@ function gitignore(fs: FileSystemHost, root: string, warnings: string[]): Ignore
   return matches;
 }
 
-/**
- * tsconfig.json at the root if present (paths aliases, baseUrl, extends); JS is always included.
- * ponytail: root tsconfig only. Packages with their own `paths` in a monorepo will show those aliases as
- * external; upgrade path: look up the nearest tsconfig per directory and cache options per config.
- */
-function compilerOptions(fs: FileSystemHost, root: string, warnings: string[]): ts.CompilerOptions {
+/** Options from one tsconfig.json (paths aliases, baseUrl, extends), or defaults when `configPath` is "". JS is always included. */
+function compilerOptions(fs: FileSystemHost, configPath: string, label: string, warnings: string[]): ts.CompilerOptions {
   const defaults: ts.CompilerOptions = {
     allowJs: true,
     resolveJsonModule: true,
@@ -178,12 +206,11 @@ function compilerOptions(fs: FileSystemHost, root: string, warnings: string[]): 
     moduleResolution: ts.ModuleResolutionKind.Bundler,
     target: ts.ScriptTarget.ES2022,
   };
-  const configPath = joinPath(root, "tsconfig.json");
-  if (!fs.fileExists(configPath)) return defaults;
+  if (!configPath) return defaults;
 
   const read = ts.readConfigFile(configPath, (p) => fs.readFile(p));
   if (read.error) {
-    warnings.push(`tsconfig.json: ${ts.flattenDiagnosticMessageText(read.error.messageText, " ")}; using defaults`);
+    warnings.push(`${label}: ${ts.flattenDiagnosticMessageText(read.error.messageText, " ")}; using defaults`);
     return defaults;
   }
   const parsed = ts.parseJsonConfigFileContent(
@@ -194,11 +221,11 @@ function compilerOptions(fs: FileSystemHost, root: string, warnings: string[]): 
       fileExists: (p) => fs.fileExists(p),
       readFile: (p) => fs.readFile(p),
     },
-    root,
+    dirname(configPath),
   );
   const NO_INPUTS = 18003; // expected: readDirectory above returns nothing
   for (const e of parsed.errors.filter((d) => d.code !== NO_INPUTS)) {
-    warnings.push(`tsconfig.json: ${ts.flattenDiagnosticMessageText(e.messageText, " ")}`);
+    warnings.push(`${label}: ${ts.flattenDiagnosticMessageText(e.messageText, " ")}`);
   }
   const options = { ...parsed.options, allowJs: true };
   if (options.moduleResolution === undefined) {

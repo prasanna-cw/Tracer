@@ -8,6 +8,28 @@ const r = analyzePath(demoRoot);
 const g = r.graph;
 const edges = g.edges.map((e) => `${e.source} -> ${e.target}`);
 
+describe("analyzer on samples/monorepo (nearest tsconfig per file)", () => {
+  const m = analyzePath(fileURLToPath(new URL("../../../samples/monorepo", import.meta.url))).graph;
+
+  it("resolves the same alias (~/*) against each package's own tsconfig", () => {
+    expect(m.edges.map((e) => `${e.source} -> ${e.target}`)).toEqual([
+      "packages/api/src/routes/index.ts -> packages/api/src/db.ts", // ~/db in api
+      "packages/api/src/server.ts -> packages/api/src/routes/index.ts", // ~/routes in api
+      "packages/api/src/server.ts -> packages/shared/src/index.ts", // @mono/shared via api's paths
+      "packages/shared/src/index.ts -> packages/shared/src/greet.ts",
+      "packages/web/src/components/Header.tsx -> packages/web/src/lib/format.ts", // ~/lib in web
+      "packages/web/src/main.tsx -> packages/shared/src/index.ts",
+      "packages/web/src/main.tsx -> packages/web/src/components/Header.tsx",
+      "scripts/build.mjs -> scripts/util.mjs", // root tsconfig (allowJs)
+    ]);
+    expect(m.summary).toMatchObject({ fileCount: 10, edgeCount: 8, unresolvedCount: 0, externalCount: 0, warnings: [] });
+  });
+
+  it("lists the workspace packages", () => {
+    expect(m.packages).toEqual(["packages/api", "packages/shared", "packages/web"]);
+  });
+});
+
 describe("analyzer on samples/demo-repo", () => {
   it("summary has the exact expected counts", () => {
     expect(g.summary).toMatchObject({

@@ -1,6 +1,7 @@
 {
   "version": 1,
   "root": "demo-repo",
+  "packages": [],
   "nodes": [
     {
       "id": "src/app.tsx",

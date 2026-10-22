@@ -82,7 +82,8 @@ function GraphExplorer({ graph, theme, onOpenSource }: { graph: CodeGraph; theme
   const [showCycles, setShowCycles] = useState(false);
 
   // ---- derived data ---------------------------------------------------------------------------
-  const groupOf = useMemo(() => groupResolver(graph.nodes.map((n) => n.path)), [graph]);
+  // A repo with package.json files below its root is a monorepo: color by package (two levels).
+  const groupOf = useMemo(() => groupResolver(graph.nodes.map((n) => n.path), graph.packages.length > 0), [graph]);
   // Natural order for the legend (pkg2 before pkg10); display only, nothing persisted depends on it.
   const groups = useMemo(
     () => [...new Set(graph.nodes.map((n) => groupOf(n.path)))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),

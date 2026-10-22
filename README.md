@@ -21,7 +21,7 @@ npm run analyze -- --root C:\path\to\repo --out packages/app/public/graph.json
 npm run dev    # then open the Graph tab (or http://localhost:5173/#graph)
 ```
 
-The analyzer reads TypeScript and JavaScript (`.ts .tsx .js .jsx .mjs .cjs`), honors the root `tsconfig.json` (`paths`, `baseUrl`, `extends`) and the root `.gitignore`, and skips `node_modules`, `dist`, `build`, `.git`, `coverage`. It prints a summary:
+The analyzer reads TypeScript and JavaScript (`.ts .tsx .js .jsx .mjs .cjs`), resolves each file against its nearest `tsconfig.json` (`paths`, `baseUrl`, `extends`; per-package in a monorepo), honors the root `.gitignore`, and skips `node_modules`, `dist`, `build`, `.git`, `coverage`. It prints a summary:
 
 ```text
 files       25 (+1 skipped)
@@ -89,4 +89,5 @@ Paths are relative to where you run the command.
 - `packages/app`: Vite + React web prototype.
 - `packages/cli`: `analyze`, `export:canvas`, `import:canvas` commands.
 - `samples/demo-repo`: synthetic project the analyzer tests run against; `samples/demo-graph.json` is its committed graph.
+- `samples/monorepo`: npm-workspaces fixture for per-package tsconfig resolution.
 - `docs/SCHEMA.md`: diagram format. `docs/DECISIONS.md`: why things are the way they are.

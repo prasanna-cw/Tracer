@@ -29,6 +29,7 @@ export const codeGraphSummarySchema = z.object({
 export const codeGraphSchema = z.object({
   version: z.literal(1),
   root: z.string(), // folder name only: no absolute paths in a file that gets committed or shared
+  packages: z.array(z.string()).default([]), // folders below the root holding a package.json (monorepo packages)
   nodes: z.array(codeGraphNodeSchema),
   edges: z.array(codeGraphEdgeSchema),
   summary: codeGraphSummarySchema,

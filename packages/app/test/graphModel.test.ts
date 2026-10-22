@@ -17,6 +17,15 @@ describe("groupResolver", () => {
       "ui",
     ]);
   });
+  it("monorepo: first two levels below the shared root", () => {
+    const g = groupResolver(["packages/app/src/a.ts", "packages/core/src/b.ts", "scripts/x.ts", "eslint.config.js"], true);
+    expect([g("packages/app/src/a.ts"), g("packages/core/src/b.ts"), g("scripts/x.ts"), g("eslint.config.js")]).toEqual([
+      "packages/app",
+      "packages/core",
+      "scripts",
+      "(root)",
+    ]);
+  });
   it("uses top-level folders when nothing is shared", () => {
     const g = groupResolver(["packages/a/x.ts", "samples/y.ts", "eslint.config.js"]);
     expect([g("packages/a/x.ts"), g("samples/y.ts"), g("eslint.config.js")]).toEqual(["packages", "samples", "(root)"]);
