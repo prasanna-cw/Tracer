@@ -10,6 +10,8 @@ export type History = {
 
 export type HistoryAction =
   | { type: "load"; diagram: Diagram }
+  /** The document changed outside the app (VS Code undo, an external save): it becomes the new baseline. */
+  | { type: "replace"; diagram: Diagram }
   | { type: "move"; moves: { id: string; x: number; y: number }[] }
   | { type: "edit"; id: string; patch: Partial<DiagramNode> }
   | { type: "undo" }
@@ -37,6 +39,7 @@ function updateNodes(d: Diagram, update: (n: DiagramNode) => DiagramNode): Diagr
 export function historyReducer(h: History, a: HistoryAction): History {
   switch (a.type) {
     case "load":
+    case "replace":
       return initHistory(a.diagram);
     case "move": {
       const byId = new Map(a.moves.map((m) => [m.id, m]));

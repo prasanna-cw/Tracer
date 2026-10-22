@@ -3,6 +3,8 @@ export type SaveState = "idle" | "saving" | "saved";
 export type View = "diagram" | "graph";
 
 type Props = {
+  /** web: view tabs, diagram picker, theme switch. editor (VS Code): one document; the theme follows VS Code. */
+  mode: "web" | "editor";
   view: View;
   onView: (v: View) => void;
   diagrams: { id: string; title: string }[];
@@ -31,23 +33,27 @@ export function Toolbar(p: Props) {
   return (
     <header className="toolbar" role="toolbar" aria-label="Diagram">
       <strong className="brand">CodeMap</strong>
-      <div className="group tabs" role="tablist" aria-label="View">
-        {(["diagram", "graph"] as const).map((v) => (
-          <button key={v} type="button" role="tab" aria-selected={p.view === v} onClick={() => p.onView(v)}>
-            {v === "diagram" ? "Diagram" : "Graph"}
-          </button>
-        ))}
-      </div>
+      {p.mode === "web" && (
+        <div className="group tabs" role="tablist" aria-label="View">
+          {(["diagram", "graph"] as const).map((v) => (
+            <button key={v} type="button" role="tab" aria-selected={p.view === v} onClick={() => p.onView(v)}>
+              {v === "diagram" ? "Diagram" : "Graph"}
+            </button>
+          ))}
+        </div>
+      )}
 
       {p.view === "diagram" && (
         <>
-          <select aria-label="Diagram" value={p.currentId ?? ""} onChange={(e) => p.onOpen(e.target.value)}>
-            {p.diagrams.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.title}
-              </option>
-            ))}
-          </select>
+          {p.mode === "web" && (
+            <select aria-label="Diagram" value={p.currentId ?? ""} onChange={(e) => p.onOpen(e.target.value)}>
+              {p.diagrams.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.title}
+                </option>
+              ))}
+            </select>
+          )}
 
           <div className="group">
             <button type="button" onClick={p.onUndo} disabled={!p.canUndo} title="Undo (Ctrl+Z)">
@@ -92,13 +98,15 @@ export function Toolbar(p: Props) {
         </>
       )}
 
-      <div className="group theme-switch" role="radiogroup" aria-label="Theme">
-        {(["clean", "obsidian"] as const).map((t) => (
-          <button key={t} type="button" role="radio" aria-checked={p.theme === t} onClick={() => p.onTheme(t)}>
-            {t === "clean" ? "Clean" : "Obsidian"}
-          </button>
-        ))}
-      </div>
+      {p.mode === "web" && (
+        <div className="group theme-switch" role="radiogroup" aria-label="Theme">
+          {(["clean", "obsidian"] as const).map((t) => (
+            <button key={t} type="button" role="radio" aria-checked={p.theme === t} onClick={() => p.onTheme(t)}>
+              {t === "clean" ? "Clean" : "Obsidian"}
+            </button>
+          ))}
+        </div>
+      )}
     </header>
   );
 }

@@ -1,10 +1,10 @@
 import {
   codeGraphSchema,
+  diagramToText,
   findUnknownKeys,
   formatIssues,
-  fromJsonCanvas,
-  parseDiagram,
-  toJsonCanvas,
+  isCanvasFile as isCanvas,
+  textToDiagram,
   type CodeGraph,
   type Diagram,
 } from "@codemap/core";
@@ -14,8 +14,6 @@ import type { HostAdapter } from "./HostAdapter";
 const SAMPLES = import.meta.glob<string>(["../../../../samples/*.diagram.json", "../../../../samples/*.canvas"], { query: "?raw", import: "default" });
 const sampleId = (path: string): string => path.slice(path.lastIndexOf("/") + 1);
 const loaders = new Map(Object.entries(SAMPLES).map(([path, load]) => [sampleId(path), load]));
-
-const isCanvas = (id: string): boolean => id.toLowerCase().endsWith(".canvas");
 
 // Chromium's File System Access API; absent from TS's DOM lib and from Firefox/Safari.
 type SaveHandle = { createWritable(): Promise<{ write(data: string): Promise<void>; close(): Promise<void> }> };
@@ -33,13 +31,7 @@ export class WebHost implements HostAdapter {
   async loadDiagram(id: string): Promise<Diagram> {
     const load = loaders.get(id);
     if (!load) throw new Error(`No diagram named "${id}" in samples/`);
-    let json: unknown;
-    try {
-      json = JSON.parse(await load());
-    } catch (e) {
-      throw new Error(`${id} is not valid JSON: ${(e as Error).message}`, { cause: e });
-    }
-    const r = isCanvas(id) ? fromJsonCanvas(json, { title: id.replace(/\.canvas$/i, "") }) : parseDiagram(json);
+    const r = textToDiagram(id, await load());
     if (!r.ok) throw new Error(`${id} is not a valid ${isCanvas(id) ? "JSON Canvas" : "diagram"}:\n${r.errors.join("\n")}`);
     for (const w of r.warnings) this.notify(w);
     // Dev-only: unknown keys are preserved, so a typo or an invented field would otherwise go unnoticed.
@@ -52,7 +44,7 @@ export class WebHost implements HostAdapter {
 
   /** Saves in the file's own format. Chromium: real file handle (remembered per diagram); elsewhere: a download. */
   async saveDiagram(id: string, diagram: Diagram): Promise<void> {
-    const text = JSON.stringify(isCanvas(id) ? toJsonCanvas(diagram) : diagram, null, isCanvas(id) ? "\t" : 2) + "\n";
+    const text = diagramToText(id, diagram);
     const picker = (window as unknown as { showSaveFilePicker?: SavePicker }).showSaveFilePicker;
     if (!picker) {
       download(id, text, "application/json");

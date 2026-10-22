@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { ReactFlowProvider } from "@xyflow/react";
 import { toBlob, toSvg } from "html-to-image";
 import { toJsonCanvas, type Diagram } from "@codemap/core";
@@ -6,7 +6,7 @@ import { DiagramCanvas } from "./canvas/DiagramCanvas";
 import { historyReducer, initHistory } from "./canvas/history";
 import type { Highlight } from "./canvas/toFlow";
 import { WalkthroughBar } from "./canvas/WalkthroughBar";
-import { WebHost } from "./host/WebHost";
+import type { HostAdapter, HostEnv } from "./host/HostAdapter";
 import { SidePanel } from "./ui/SidePanel";
 import { Toasts, useToasts } from "./ui/Toasts";
 import { Toolbar, type SaveState, type Theme, type View } from "./ui/Toolbar";
@@ -29,20 +29,34 @@ function readTheme(): Theme {
 const isTyping = (t: EventTarget | null): boolean =>
   t instanceof HTMLElement && (t.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName));
 
-export function App() {
+type Props = {
+  /** Called once; `notify` shows a toast. Must be a stable function (defined outside React). */
+  createHost: (notify: (message: string) => void) => HostAdapter;
+  /** web: the standalone prototype. editor: one document owned by the host (VS Code). graph: only the graph. */
+  env: HostEnv;
+  initialTheme?: Theme;
+};
+
+export function App({ createHost, env, initialTheme }: Props) {
   const [toasts, notify, dismiss] = useToasts();
-  const host = useMemo(() => new WebHost(notify), [notify]);
+  const host = useMemo(() => createHost(notify), [createHost, notify]);
+  const web = env.kind === "web";
+  // In the VS Code editor the host owns the document: undo/redo, dirty state and save go through it.
+  const hostOwnsDocument = env.kind === "editor";
 
   const [diagrams, setDiagrams] = useState<{ id: string; title: string }[]>([]);
-  const [currentId, setCurrentId] = useState<string | null>(null);
+  const [currentId, setCurrentId] = useState<string | null>(env.kind === "editor" ? env.documentId : null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadSeq, setLoadSeq] = useState(0); // remounts the canvas per load so it fits the new diagram
   const [h, dispatch] = useReducer(historyReducer, EMPTY, initHistory);
   const diagram = h.present;
-  const dirty = h.present !== h.saved;
+  const dirty = !hostOwnsDocument && h.present !== h.saved; // VS Code shows its own dirty marker on the tab
+  const synced = useRef<Diagram | null>(null); // last diagram the host has seen (editor mode)
 
-  const [view, setView] = useState<View>(() => (location.hash === GRAPH_HASH ? "graph" : "diagram"));
-  const [theme, setTheme] = useState<Theme>(readTheme);
+  const [view, setView] = useState<View>(() =>
+    env.kind === "graph" || (web && location.hash === GRAPH_HASH) ? "graph" : "diagram",
+  );
+  const [theme, setTheme] = useState<Theme>(() => initialTheme ?? readTheme());
   const [snap, setSnap] = useState(false);
   const [minimap, setMinimap] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -52,34 +66,68 @@ export function App() {
 
   // --- loading ---------------------------------------------------------------
   useEffect(() => {
+    if (!web) return; // the editor shows exactly one document
     void host.listDiagrams().then((list) => {
       setDiagrams(list);
       const fromHash = decodeURIComponent(location.hash.slice(1));
       const pick = [fromHash, DEFAULT_ID].find((id) => list.some((d) => d.id === id));
       setCurrentId(pick ?? list[0]?.id ?? null);
     });
-  }, [host]);
+  }, [host, web]);
 
   useEffect(() => {
-    if (!currentId) return;
+    if (!currentId || env.kind === "graph") return;
     let cancelled = false;
     host.loadDiagram(currentId).then(
       (d) => {
         if (cancelled) return;
         dispatch({ type: "load", diagram: d });
+        synced.current = d;
         setLoadSeq((n) => n + 1);
         setLoadError(null);
         setSelectedId(null);
         setStepIndex(null);
         setPlaying(false);
-        if (location.hash !== GRAPH_HASH) history.replaceState(null, "", `#${encodeURIComponent(currentId)}`);
+        host.reportStatus?.({ id: currentId, state: "loaded", nodeCount: d.nodes.length });
+        if (web && location.hash !== GRAPH_HASH) history.replaceState(null, "", `#${encodeURIComponent(currentId)}`);
       },
-      (e: unknown) => !cancelled && setLoadError(e instanceof Error ? e.message : String(e)),
+      (e: unknown) => {
+        if (cancelled) return;
+        const message = e instanceof Error ? e.message : String(e);
+        setLoadError(message);
+        host.reportStatus?.({ id: currentId, state: "error", detail: message });
+      },
     );
     return () => {
       cancelled = true;
     };
-  }, [currentId, host]);
+  }, [currentId, host, web, env.kind]);
+
+  // Editor mode: every committed change goes to the host document (one VS Code undo step each)...
+  useEffect(() => {
+    if (!hostOwnsDocument || !currentId || loadSeq === 0 || h.present === synced.current) return;
+    synced.current = h.present;
+    host.applyEdit?.(currentId, h.present);
+  }, [h.present, hostOwnsDocument, currentId, loadSeq, host]);
+
+  // ...and changes made elsewhere (VS Code undo/redo, a text editor, an Obsidian save) come back in.
+  useEffect(() => {
+    if (!hostOwnsDocument) return;
+    const offChanged = host.onDocumentChanged?.((id, d) => {
+      if (id !== currentId) return;
+      synced.current = d; // already in the document: don't echo it back
+      dispatch({ type: "replace", diagram: d });
+      setLoadError(null);
+      setLoadSeq((n) => n || 1);
+    });
+    const offInvalid = host.onDocumentInvalid?.((id, errors) => {
+      if (id === currentId) setLoadError(`The document no longer parses:\n${errors.join("\n")}`);
+    });
+    return () => {
+      offChanged?.();
+      offInvalid?.();
+    };
+  }, [host, hostOwnsDocument, currentId]);
 
   const open = (id: string) => {
     if (id === currentId) return;
@@ -87,8 +135,9 @@ export function App() {
     setCurrentId(id);
   };
 
-  // The hash is the route: #graph, or #<diagram file>. Back/forward and pasted links work.
+  // The hash is the route (web only): #graph, or #<diagram file>. Back/forward and pasted links work.
   useEffect(() => {
+    if (!web) return;
     const onHash = () => {
       if (location.hash === GRAPH_HASH) {
         setView("graph");
@@ -106,7 +155,7 @@ export function App() {
     };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
-  }, [currentId, diagrams, dirty]);
+  }, [currentId, diagrams, dirty, web]);
 
   useEffect(() => {
     if (!dirty) return;
@@ -116,14 +165,16 @@ export function App() {
   }, [dirty]);
 
   // --- theme -------------------------------------------------------------------
+  useEffect(() => host.onThemeChanged?.(setTheme), [host]);
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
+    if (!web) return; // in VS Code the theme comes from VS Code and the codemap.theme setting
     try {
       localStorage.setItem(THEME_KEY, theme);
     } catch {
       // storage blocked (private mode, policy): theme just won't persist
     }
-  }, [theme]);
+  }, [theme, web]);
 
   // --- save / export -----------------------------------------------------------
   const save = useCallback(async () => {
@@ -142,7 +193,7 @@ export function App() {
   }, [currentId, diagram, host, notify]);
 
   const exportAs = async (kind: "canvas" | "svg" | "png") => {
-    const base = (currentId ?? "diagram").replace(/\.(diagram\.json|json|canvas)$/i, "");
+    const base = (currentId ?? "diagram").replace(/^.*[\\/]/, "").replace(/\.(diagram\.json|json|canvas)$/i, "");
     try {
       if (kind === "canvas") {
         await host.exportFile(`${base}.canvas`, JSON.stringify(toJsonCanvas(diagram), null, "\t") + "\n");
@@ -160,7 +211,7 @@ export function App() {
       if (!blob) throw new Error("renderer returned nothing");
       await host.exportFile(`${base}.${kind}`, blob);
     } catch (e) {
-      notify(`Export failed: ${(e as Error).message}`);
+      if ((e as Error).name !== "AbortError") notify(`Export failed: ${(e as Error).message}`);
     }
   };
 
@@ -193,60 +244,66 @@ export function App() {
       if (view !== "diagram") return; // the graph view handles its own keys
       const mod = e.ctrlKey || e.metaKey;
       const key = e.key.toLowerCase();
-      if (mod && key === "s") {
-        e.preventDefault(); // even while typing: never let the browser "save page"
-        void save();
-        return;
+      // In VS Code, Ctrl+S/Z/Y are VS Code's (save and undo the document): leave them alone.
+      if (!hostOwnsDocument) {
+        if (mod && key === "s") {
+          e.preventDefault(); // even while typing: never let the browser "save page"
+          void save();
+          return;
+        }
+        if (isTyping(e.target)) return; // text fields keep their own undo and arrows
+        if (mod && (key === "y" || (key === "z" && e.shiftKey))) {
+          e.preventDefault();
+          dispatch({ type: "redo" });
+          return;
+        }
+        if (mod && key === "z") {
+          e.preventDefault();
+          dispatch({ type: "undo" });
+          return;
+        }
       }
-      if (isTyping(e.target)) return; // text fields keep their own undo and arrows
-      if (mod && (key === "y" || (key === "z" && e.shiftKey))) {
-        e.preventDefault();
-        dispatch({ type: "redo" });
-      } else if (mod && key === "z") {
-        e.preventDefault();
-        dispatch({ type: "undo" });
-      } else if (stepIndex !== null && e.key === "ArrowRight") {
-        go(1);
-      } else if (stepIndex !== null && e.key === "ArrowLeft") {
-        go(-1);
-      } else if (stepIndex !== null && e.key === "Escape") {
-        setStepIndex(null);
-        setPlaying(false);
-      }
+      if (isTyping(e.target)) return;
+      if (stepIndex !== null && e.key === "ArrowRight") go(1);
+      else if (stepIndex !== null && e.key === "ArrowLeft") go(-1);
+      else if (stepIndex !== null && e.key === "Escape") exitWalkthrough();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [save, go, stepIndex, view]);
+  }, [save, go, stepIndex, view, hostOwnsDocument]);
 
   const selected = selectedId ? diagram.nodes.find((n) => n.id === selectedId) : undefined;
   const ready = loadSeq > 0;
 
   return (
     <div className="app">
-      <Toolbar
-        view={view}
-        onView={(v) => (location.hash = v === "graph" ? GRAPH_HASH : encodeURIComponent(currentId ?? DEFAULT_ID))}
-        diagrams={diagrams}
-        currentId={currentId}
-        onOpen={open}
-        canUndo={h.past.length > 0}
-        canRedo={h.future.length > 0}
-        onUndo={() => dispatch({ type: "undo" })}
-        onRedo={() => dispatch({ type: "redo" })}
-        dirty={dirty}
-        saveState={saveState}
-        onSave={() => void save()}
-        onExport={(k) => void exportAs(k)}
-        hasSteps={steps.length > 0}
-        walkthrough={stepIndex !== null}
-        onToggleWalkthrough={() => (stepIndex === null ? setStepIndex(0) : exitWalkthrough())}
-        snap={snap}
-        onToggleSnap={() => setSnap((s) => !s)}
-        minimap={minimap}
-        onToggleMinimap={() => setMinimap((m) => !m)}
-        theme={theme}
-        onTheme={setTheme}
-      />
+      {env.kind !== "graph" && (
+        <Toolbar
+          mode={web ? "web" : "editor"}
+          view={view}
+          onView={(v) => (location.hash = v === "graph" ? GRAPH_HASH : encodeURIComponent(currentId ?? DEFAULT_ID))}
+          diagrams={diagrams}
+          currentId={currentId}
+          onOpen={open}
+          canUndo={hostOwnsDocument || h.past.length > 0}
+          canRedo={hostOwnsDocument || h.future.length > 0}
+          onUndo={() => (hostOwnsDocument ? host.runCommand?.("undo") : dispatch({ type: "undo" }))}
+          onRedo={() => (hostOwnsDocument ? host.runCommand?.("redo") : dispatch({ type: "redo" }))}
+          dirty={dirty}
+          saveState={saveState}
+          onSave={() => void save()}
+          onExport={(k) => void exportAs(k)}
+          hasSteps={steps.length > 0}
+          walkthrough={stepIndex !== null}
+          onToggleWalkthrough={() => (stepIndex === null ? setStepIndex(0) : exitWalkthrough())}
+          snap={snap}
+          onToggleSnap={() => setSnap((s) => !s)}
+          minimap={minimap}
+          onToggleMinimap={() => setMinimap((m) => !m)}
+          theme={theme}
+          onTheme={setTheme}
+        />
+      )}
       {view === "graph" ? (
         <main className="workspace">
           <GraphView host={host} theme={theme} />

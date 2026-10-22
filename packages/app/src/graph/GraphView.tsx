@@ -7,6 +7,8 @@ import { cycleEdgeKeys, edgeKey, findCycles, type CodeGraph } from "@codemap/cor
 import type { HostAdapter } from "../host/HostAdapter";
 import { groupResolver, neighborsOf, searchMatches, visibleNodeIds } from "./graphModel";
 import type { FromLayout, ToLayout } from "./layoutEngine";
+// Inlined as a blob: worker. A webview cannot start a Worker from its (cross-origin) resource URL.
+import LayoutWorker from "./layout.worker?worker&inline";
 import { drawGraph, type GraphColors, type Scene, type SimLink, type SimNode } from "./renderer";
 
 type Settings = { center: number; repel: number; linkStrength: number; linkDistance: number; nodeSize: number; labelZoom: number };
@@ -186,7 +188,7 @@ function GraphExplorer({ graph, theme, onOpenSource }: { graph: CodeGraph; theme
     const byId = new Map<string, SimNode>(
       graph.nodes.map((n) => [n.id, { id: n.id, node: n, r: 4, colorIndex: 0, color: "", label: label(n.path) }]),
     );
-    const worker = new Worker(new URL("./layout.worker.ts", import.meta.url), { type: "module" });
+    const worker = new LayoutWorker();
     const e: Engine = { worker, gen: 0, byId, nodes: [], index: new Map(), links: [], tree: null, maxR: 0, fitted: false };
     worker.onmessage = (ev: MessageEvent<FromLayout>) => {
       const { gen, positions, settled } = ev.data;
