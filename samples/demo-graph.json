@@ -1,0 +1,374 @@
+{
+  "version": 1,
+  "root": "demo-repo",
+  "nodes": [
+    {
+      "id": "src/app.tsx",
+      "path": "src/app.tsx",
+      "folder": "src",
+      "ext": "tsx",
+      "loc": 10,
+      "inDegree": 1,
+      "outDegree": 4
+    },
+    {
+      "id": "src/broken/missing.ts",
+      "path": "src/broken/missing.ts",
+      "folder": "src/broken",
+      "ext": "ts",
+      "loc": 6,
+      "inDegree": 0,
+      "outDegree": 0
+    },
+    {
+      "id": "src/core/config.ts",
+      "path": "src/core/config.ts",
+      "folder": "src/core",
+      "ext": "ts",
+      "loc": 1,
+      "inDegree": 1,
+      "outDegree": 0
+    },
+    {
+      "id": "src/core/cycle/a.ts",
+      "path": "src/core/cycle/a.ts",
+      "folder": "src/core/cycle",
+      "ext": "ts",
+      "loc": 2,
+      "inDegree": 2,
+      "outDegree": 1
+    },
+    {
+      "id": "src/core/cycle/b.ts",
+      "path": "src/core/cycle/b.ts",
+      "folder": "src/core/cycle",
+      "ext": "ts",
+      "loc": 2,
+      "inDegree": 1,
+      "outDegree": 1
+    },
+    {
+      "id": "src/core/cycle/c.ts",
+      "path": "src/core/cycle/c.ts",
+      "folder": "src/core/cycle",
+      "ext": "ts",
+      "loc": 3,
+      "inDegree": 1,
+      "outDegree": 1
+    },
+    {
+      "id": "src/core/format.ts",
+      "path": "src/core/format.ts",
+      "folder": "src/core",
+      "ext": "ts",
+      "loc": 3,
+      "inDegree": 4,
+      "outDegree": 1
+    },
+    {
+      "id": "src/core/index.ts",
+      "path": "src/core/index.ts",
+      "folder": "src/core",
+      "ext": "ts",
+      "loc": 2,
+      "inDegree": 1,
+      "outDegree": 2
+    },
+    {
+      "id": "src/core/store.ts",
+      "path": "src/core/store.ts",
+      "folder": "src/core",
+      "ext": "ts",
+      "loc": 6,
+      "inDegree": 2,
+      "outDegree": 1
+    },
+    {
+      "id": "src/features/legacy/bridge.mjs",
+      "path": "src/features/legacy/bridge.mjs",
+      "folder": "src/features/legacy",
+      "ext": "mjs",
+      "loc": 4,
+      "inDegree": 1,
+      "outDegree": 1
+    },
+    {
+      "id": "src/features/legacy/helper.cjs",
+      "path": "src/features/legacy/helper.cjs",
+      "folder": "src/features/legacy",
+      "ext": "cjs",
+      "loc": 1,
+      "inDegree": 2,
+      "outDegree": 0
+    },
+    {
+      "id": "src/features/legacy/server.cjs",
+      "path": "src/features/legacy/server.cjs",
+      "folder": "src/features/legacy",
+      "ext": "cjs",
+      "loc": 4,
+      "inDegree": 0,
+      "outDegree": 1
+    },
+    {
+      "id": "src/features/reports/chart.js",
+      "path": "src/features/reports/chart.js",
+      "folder": "src/features/reports",
+      "ext": "js",
+      "loc": 4,
+      "inDegree": 1,
+      "outDegree": 1
+    },
+    {
+      "id": "src/features/reports/index.ts",
+      "path": "src/features/reports/index.ts",
+      "folder": "src/features/reports",
+      "ext": "ts",
+      "loc": 5,
+      "inDegree": 1,
+      "outDegree": 3
+    },
+    {
+      "id": "src/features/widgets/Widget.jsx",
+      "path": "src/features/widgets/Widget.jsx",
+      "folder": "src/features/widgets",
+      "ext": "jsx",
+      "loc": 5,
+      "inDegree": 1,
+      "outDegree": 1
+    },
+    {
+      "id": "src/main.ts",
+      "path": "src/main.ts",
+      "folder": "src",
+      "ext": "ts",
+      "loc": 6,
+      "inDegree": 0,
+      "outDegree": 3
+    },
+    {
+      "id": "src/orphan.ts",
+      "path": "src/orphan.ts",
+      "folder": "src",
+      "ext": "ts",
+      "loc": 2,
+      "inDegree": 0,
+      "outDegree": 0
+    },
+    {
+      "id": "src/ui/Button.tsx",
+      "path": "src/ui/Button.tsx",
+      "folder": "src/ui",
+      "ext": "tsx",
+      "loc": 7,
+      "inDegree": 3,
+      "outDegree": 1
+    },
+    {
+      "id": "src/ui/Card.jsx",
+      "path": "src/ui/Card.jsx",
+      "folder": "src/ui",
+      "ext": "jsx",
+      "loc": 5,
+      "inDegree": 1,
+      "outDegree": 1
+    },
+    {
+      "id": "src/ui/__tests__/Button.test.tsx",
+      "path": "src/ui/__tests__/Button.test.tsx",
+      "folder": "src/ui/__tests__",
+      "ext": "tsx",
+      "loc": 4,
+      "inDegree": 0,
+      "outDegree": 1
+    },
+    {
+      "id": "src/ui/index.ts",
+      "path": "src/ui/index.ts",
+      "folder": "src/ui",
+      "ext": "ts",
+      "loc": 2,
+      "inDegree": 2,
+      "outDegree": 2
+    },
+    {
+      "id": "src/utils/index.js",
+      "path": "src/utils/index.js",
+      "folder": "src/utils",
+      "ext": "js",
+      "loc": 2,
+      "inDegree": 1,
+      "outDegree": 2
+    },
+    {
+      "id": "src/utils/numbers.js",
+      "path": "src/utils/numbers.js",
+      "folder": "src/utils",
+      "ext": "js",
+      "loc": 1,
+      "inDegree": 2,
+      "outDegree": 0
+    },
+    {
+      "id": "src/utils/numbers.test.ts",
+      "path": "src/utils/numbers.test.ts",
+      "folder": "src/utils",
+      "ext": "ts",
+      "loc": 4,
+      "inDegree": 0,
+      "outDegree": 1
+    },
+    {
+      "id": "src/utils/strings.js",
+      "path": "src/utils/strings.js",
+      "folder": "src/utils",
+      "ext": "js",
+      "loc": 1,
+      "inDegree": 1,
+      "outDegree": 0
+    }
+  ],
+  "edges": [
+    {
+      "source": "src/app.tsx",
+      "target": "src/core/store.ts"
+    },
+    {
+      "source": "src/app.tsx",
+      "target": "src/features/reports/index.ts"
+    },
+    {
+      "source": "src/app.tsx",
+      "target": "src/features/widgets/Widget.jsx"
+    },
+    {
+      "source": "src/app.tsx",
+      "target": "src/ui/index.ts"
+    },
+    {
+      "source": "src/core/cycle/a.ts",
+      "target": "src/core/cycle/b.ts"
+    },
+    {
+      "source": "src/core/cycle/b.ts",
+      "target": "src/core/cycle/c.ts"
+    },
+    {
+      "source": "src/core/cycle/c.ts",
+      "target": "src/core/cycle/a.ts"
+    },
+    {
+      "source": "src/core/format.ts",
+      "target": "src/core/config.ts"
+    },
+    {
+      "source": "src/core/index.ts",
+      "target": "src/core/format.ts"
+    },
+    {
+      "source": "src/core/index.ts",
+      "target": "src/core/store.ts"
+    },
+    {
+      "source": "src/core/store.ts",
+      "target": "src/core/format.ts"
+    },
+    {
+      "source": "src/features/legacy/bridge.mjs",
+      "target": "src/features/legacy/helper.cjs"
+    },
+    {
+      "source": "src/features/legacy/server.cjs",
+      "target": "src/features/legacy/helper.cjs"
+    },
+    {
+      "source": "src/features/reports/chart.js",
+      "target": "src/core/format.ts"
+    },
+    {
+      "source": "src/features/reports/index.ts",
+      "target": "src/core/cycle/a.ts"
+    },
+    {
+      "source": "src/features/reports/index.ts",
+      "target": "src/core/index.ts"
+    },
+    {
+      "source": "src/features/reports/index.ts",
+      "target": "src/features/reports/chart.js"
+    },
+    {
+      "source": "src/features/widgets/Widget.jsx",
+      "target": "src/ui/index.ts"
+    },
+    {
+      "source": "src/main.ts",
+      "target": "src/app.tsx"
+    },
+    {
+      "source": "src/main.ts",
+      "target": "src/features/legacy/bridge.mjs"
+    },
+    {
+      "source": "src/main.ts",
+      "target": "src/utils/index.js"
+    },
+    {
+      "source": "src/ui/Button.tsx",
+      "target": "src/core/format.ts"
+    },
+    {
+      "source": "src/ui/Card.jsx",
+      "target": "src/ui/Button.tsx"
+    },
+    {
+      "source": "src/ui/__tests__/Button.test.tsx",
+      "target": "src/ui/Button.tsx"
+    },
+    {
+      "source": "src/ui/index.ts",
+      "target": "src/ui/Button.tsx"
+    },
+    {
+      "source": "src/ui/index.ts",
+      "target": "src/ui/Card.jsx"
+    },
+    {
+      "source": "src/utils/index.js",
+      "target": "src/utils/numbers.js"
+    },
+    {
+      "source": "src/utils/index.js",
+      "target": "src/utils/strings.js"
+    },
+    {
+      "source": "src/utils/numbers.test.ts",
+      "target": "src/utils/numbers.js"
+    }
+  ],
+  "summary": {
+    "fileCount": 25,
+    "skippedCount": 1,
+    "edgeCount": 29,
+    "unresolvedCount": 3,
+    "externalCount": 5,
+    "cycleCount": 1,
+    "unresolved": [
+      {
+        "from": "src/broken/missing.ts",
+        "specifier": "./does-not-exist"
+      },
+      {
+        "from": "src/broken/missing.ts",
+        "specifier": "@core/nope"
+      },
+      {
+        "from": "src/broken/missing.ts",
+        "specifier": "../features/ghost.js"
+      }
+    ],
+    "warnings": [
+      "src/broken/syntax-error.ts:3: syntax error (Expression expected.); skipped"
+    ]
+  }
+}

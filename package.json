@@ -16,7 +16,8 @@
     "lint": "eslint . --max-warnings 0",
     "analyze": "npm run analyze -w @codemap/cli --",
     "export:canvas": "npm run export:canvas -w @codemap/cli --",
-    "import:canvas": "npm run import:canvas -w @codemap/cli --"
+    "import:canvas": "npm run import:canvas -w @codemap/cli --",
+    "analyze:demo": "npm run analyze -- --root samples/demo-repo --out samples/demo-graph.json"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

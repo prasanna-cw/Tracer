@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "analyze": "node -e \"console.error('analyze lands in Phase 2'); process.exit(1)\"",
+    "analyze": "tsx src/analyze.ts",
     "export:canvas": "tsx src/canvas.ts export",
     "import:canvas": "tsx src/canvas.ts import"
   },
