@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { parseDiagram, type Diagram } from "../src";
+import { CATEGORIES, findUnknownKeys, parseDiagram, resolveCategory, type Diagram } from "../src";
 import { readSample } from "./helpers";
 
 const base = (): Diagram => ({
@@ -92,6 +92,36 @@ describe("diagram schema", () => {
     const r = parseDiagram(d);
     expect(r.ok && r.value.custom).toBe(1);
     expect(r.ok && r.value.nodes[0]!.zIndex).toBe(5);
+  });
+
+  it("warns (does not fail) on unknown categories, once per value; aliases are silent", () => {
+    const d = base();
+    d.nodes[0]!.category = "queue";
+    d.nodes[1]!.category = "queue";
+    d.nodes.push({ id: "c", type: "text", x: 0, y: 300, width: 10, height: 10, category: "Database" });
+    const r = parseDiagram(d);
+    expect(r.ok).toBe(true);
+    expect(r.warnings).toEqual([
+      'category "queue" (a, b) is not one of layer, entity, db, service, data, note, warning or a known alias; it gets a fallback color',
+    ]);
+  });
+
+  it("resolves canonical categories and aliases case-insensitively", () => {
+    expect([resolveCategory("db"), resolveCategory("Database"), resolveCategory(" API "), resolveCategory("queue")]).toEqual([
+      "db",
+      "db",
+      "service",
+      undefined,
+    ]);
+    expect(CATEGORIES).toHaveLength(7);
+  });
+
+  it("lists keys outside the schema (for dev warnings) without touching meta", () => {
+    const d = { ...base(), meta: { anything: 1 }, extra: true } as Diagram;
+    (d.nodes[0] as Record<string, unknown>).titel = "typo";
+    (d.edges[0] as Record<string, unknown>).weight = 2;
+    expect(findUnknownKeys(d)).toEqual(["extra", "nodes[a].titel", "edges[e1].weight"]);
+    expect(findUnknownKeys(base())).toEqual([]);
   });
 
   it("keeps huge label text intact (truncation is a rendering concern)", () => {

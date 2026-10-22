@@ -47,6 +47,19 @@ describe("JSON Canvas export", () => {
     expect(roundTrip(d).nodes.find((n) => n.id === "tbl-record")!.color).toBeUndefined();
   });
 
+  it("writes the document codemap block only when CodeMap data needs it", () => {
+    const plain: Diagram = { version: 1, title: "t", nodes: [{ id: "a", type: "text", x: 0, y: 0, width: 10, height: 10, text: "" }], edges: [] };
+    expect(toJsonCanvas(plain)).not.toHaveProperty("codemap");
+    expect(toJsonCanvas({ ...plain, meta: { k: 1 } })).toHaveProperty("codemap", { version: 1, title: "t", meta: { k: 1 } });
+    const rich: Diagram = { ...plain, nodes: [{ ...plain.nodes[0]!, kind: "note" }] };
+    expect(toJsonCanvas(rich)).toHaveProperty("codemap.title", "t");
+  });
+
+  it("maps category aliases to the same Obsidian preset", () => {
+    const n = { id: "a", type: "text" as const, x: 0, y: 0, width: 10, height: 10, category: "Database" };
+    expect(toJsonCanvas({ version: 1, title: "t", nodes: [n], edges: [] }).nodes[0]!.color).toBe("5");
+  });
+
   it("rounds fractional geometry from dragging", () => {
     const d: Diagram = { version: 1, title: "t", nodes: [{ id: "a", type: "text", x: 1.4, y: 2.6, width: 99.5, height: 50, text: "" }], edges: [] };
     expect(toJsonCanvas(d).nodes[0]).toMatchObject({ x: 1, y: 3, width: 100, height: 50 });
@@ -71,9 +84,9 @@ describe("JSON Canvas round-trip", () => {
     expect(first.value.title).toBe("Architecture");
     expect(first.value.nodes).toHaveLength(7);
     expect(byId(roundTrip(first.value).nodes)).toEqual(byId(first.value.nodes));
-    // Exporting a plain canvas adds nothing but the document-level codemap block.
-    const { codemap: _ext, ...plain } = toJsonCanvas(first.value);
-    expect(plain).toEqual(raw);
+    // A plain canvas exports exactly as it came in: no top-level codemap block.
+    expect(toJsonCanvas(first.value)).toEqual(raw);
+    expect(toJsonCanvas(first.value)).not.toHaveProperty("codemap");
   });
 
   it("keeps unknown fields on nodes, edges and the document", () => {
@@ -154,7 +167,9 @@ describe("real Obsidian output: save-flow.edited-in-obsidian.canvas", () => {
     if (!r.ok) return;
     const input = r.value.nodes.find((n) => n.id === "input")!;
     expect(input.title).toBe("Risk register testing (form input)");
-    expect(input.rows).toEqual(saveFlow().nodes.find((n) => n.id === "input")!.rows);
+    // The fixture is frozen Obsidian output: compare with the rows it carried, not the (evolving) sample.
+    const raw = readSample("save-flow.edited-in-obsidian.canvas") as { nodes: { id: string; codemap?: { rows?: unknown } }[] };
+    expect(input.rows).toEqual(raw.nodes.find((n) => n.id === "input")!.codemap!.rows);
     expect(input.kind).toBe("table");
     expect(input.color).toBeUndefined(); // derived preset color not persisted
   });

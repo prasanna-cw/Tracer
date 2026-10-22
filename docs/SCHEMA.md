@@ -8,7 +8,7 @@ Unknown fields are preserved everywhere.
 ## Document
 
 | Field | Type | Notes |
-|---|---|---|
+| --- | --- | --- |
 | `version` | `1` | required |
 | `title` | string | required, may be empty |
 | `nodes` | `DiagramNode[]` | required, may be empty |
@@ -19,7 +19,7 @@ Unknown fields are preserved everywhere.
 ## DiagramNode
 
 | Field | Type | Notes |
-|---|---|---|
+| --- | --- | --- |
 | `id` | string | unique among nodes |
 | `type` | `"text" \| "group" \| "file" \| "link"` | JSON Canvas types |
 | `x`, `y`, `width`, `height` | number | pixels; `width`/`height` > 0. Exported as integers |
@@ -30,7 +30,7 @@ Unknown fields are preserved everywhere.
 | `url` | string | required for `type: "link"` |
 | `kind` | `"layer" \| "entity" \| "data" \| "table" \| "note" \| "start"` | picks the node component |
 | `title`, `subtitle` | string | card heading |
-| `category` | string | color family: `layer, entity, db, service, data, note, warning`; unknown values get a fallback color |
+| `category` | string | color family. Canonical: `layer, entity, db, service, data, note, warning`. Aliases (case-insensitive) map onto them, e.g. `database`/`table`/`sql` → `db`, `api`/`backend` → `service`, `model`/`domain` → `entity`, `dto`/`input` → `data`, `error`/`risk` → `warning`. Other values are allowed, warn, and get a stable fallback color |
 | `rows` | `{ text, muted? }[]` | table/data rows. Cells separated by ` \| `; a muted first row is a header |
 | `source` | `{ path, line? }` | link to code (`line` is 1-based) |
 
@@ -39,7 +39,7 @@ Group membership is geometric: a node is in a group when it lies inside the grou
 ## DiagramEdge
 
 | Field | Type | Notes |
-|---|---|---|
+| --- | --- | --- |
 | `id` | string | unique among edges |
 | `fromNode`, `toNode` | string | must reference existing nodes |
 | `fromSide`, `toSide` | `"top" \| "right" \| "bottom" \| "left"` | optional; chosen automatically when missing |
@@ -51,18 +51,22 @@ Group membership is geometric: a node is in a group when it lies inside the grou
 ## WalkthroughStep
 
 | Field | Type | Notes |
-|---|---|---|
+| --- | --- | --- |
 | `id` | string | unique among steps |
 | `title` | string | non-empty |
 | `description` | string | short markdown |
 | `nodeIds` | string[] | at least one, must exist |
 | `edgeIds` | string[] | optional, must exist |
 
+## Validation warnings
+
+Non-fatal findings come back in `warnings` on both success and failure: unknown categories today, plus repairs when importing JSON Canvas. Keys outside the schema are preserved and reported only as a dev-console warning (`findUnknownKeys`).
+
 ## Validation errors
 
-`parseDiagram` returns `{ ok: true, value }` or `{ ok: false, errors }`, where each error is `path: message`:
+`parseDiagram` returns `{ ok: true, value, warnings }` or `{ ok: false, errors, warnings }`, where each error is `path: message`:
 
-```
+```text
 nodes[1].width: Invalid input: expected number, received undefined
 nodes[2].id: duplicate node id "a"
 edges[1].toNode: unknown node "ghost"

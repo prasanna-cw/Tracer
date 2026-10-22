@@ -1,0 +1,4 @@
+{
+  // Prose docs: wrapping long lines hurts diffs more than it helps reading.
+  "MD013": false
+}

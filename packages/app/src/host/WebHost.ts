@@ -1,4 +1,4 @@
-import { fromJsonCanvas, parseDiagram, toJsonCanvas, type CodeGraph, type Diagram } from "@codemap/core";
+import { findUnknownKeys, fromJsonCanvas, parseDiagram, toJsonCanvas, type CodeGraph, type Diagram } from "@codemap/core";
 import type { HostAdapter } from "./HostAdapter";
 
 // Samples are bundled at build time (and hot-reloaded in dev), so the prototype needs no server.
@@ -30,14 +30,14 @@ export class WebHost implements HostAdapter {
     } catch (e) {
       throw new Error(`${id} is not valid JSON: ${(e as Error).message}`, { cause: e });
     }
-    if (isCanvas(id)) {
-      const r = fromJsonCanvas(json, { title: id.replace(/\.canvas$/i, "") });
-      if (!r.ok) throw new Error(`${id} could not be imported:\n${r.errors.join("\n")}`);
-      for (const w of r.warnings) this.notify(w);
-      return r.value;
+    const r = isCanvas(id) ? fromJsonCanvas(json, { title: id.replace(/\.canvas$/i, "") }) : parseDiagram(json);
+    if (!r.ok) throw new Error(`${id} is not a valid ${isCanvas(id) ? "JSON Canvas" : "diagram"}:\n${r.errors.join("\n")}`);
+    for (const w of r.warnings) this.notify(w);
+    // Dev-only: unknown keys are preserved, so a typo or an invented field would otherwise go unnoticed.
+    const unknown = findUnknownKeys(r.value);
+    if (import.meta.env.DEV && unknown.length) {
+      console.warn(`[codemap] ${id}: keys outside the schema (kept as-is): ${unknown.join(", ")}`);
     }
-    const r = parseDiagram(json);
-    if (!r.ok) throw new Error(`${id} is not a valid diagram:\n${r.errors.join("\n")}`);
     return r.value;
   }
 

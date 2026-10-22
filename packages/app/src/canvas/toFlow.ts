@@ -1,5 +1,5 @@
 import type { Edge, Node } from "@xyflow/react";
-import { chooseSides, hashText, type Diagram, type DiagramEdge, type DiagramNode } from "@codemap/core";
+import { CATEGORIES, chooseSides, hashText, resolveCategory, type Diagram, type DiagramEdge, type DiagramNode } from "@codemap/core";
 
 export type FlowNode = Node<DiagramNode>;
 export type EdgeState = "active" | "dim" | undefined;
@@ -7,8 +7,8 @@ export type FlowEdgeData = { edge: DiagramEdge; state: EdgeState };
 export type FlowEdge = Edge<FlowEdgeData>;
 export type Highlight = { nodeIds: ReadonlySet<string>; edgeIds: ReadonlySet<string> } | null;
 
-export const FAMILIES = ["layer", "entity", "db", "service", "data", "note", "warning"] as const;
-export type Family = (typeof FAMILIES)[number] | "plain";
+export const FAMILIES = CATEGORIES;
+export type Family = (typeof CATEGORIES)[number] | "plain";
 
 // Same mapping as the JSON Canvas export, so Obsidian presets look like our categories.
 const PRESET_FAMILY: Record<string, Family> = { "1": "warning", "2": "entity", "3": "data", "4": "service", "5": "db", "6": "layer" };
@@ -18,7 +18,8 @@ export function paletteOf(n: Pick<DiagramNode, "color" | "category">): { family:
   if (n.color?.startsWith("#")) return { family: "plain", hex: n.color };
   if (n.color && PRESET_FAMILY[n.color]) return { family: PRESET_FAMILY[n.color] as Family };
   if (!n.category) return { family: "plain" };
-  if ((FAMILIES as readonly string[]).includes(n.category)) return { family: n.category as Family };
+  const known = resolveCategory(n.category); // canonical name or alias
+  if (known) return { family: known };
   return { family: FAMILIES[parseInt(hashText(n.category), 16) % FAMILIES.length] as Family };
 }
 

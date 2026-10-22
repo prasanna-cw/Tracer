@@ -1,5 +1,5 @@
 import type { Diagram, DiagramNode, ParseResult } from "../schema/diagram";
-import { parseDiagram } from "../schema/diagram";
+import { parseDiagram, resolveCategory } from "../schema/diagram";
 
 /**
  * JSON Canvas 1.0 <-> Diagram.
@@ -19,7 +19,7 @@ const EXT_KEY = "codemap";
 type Rec = Record<string, unknown>;
 type Rich = Pick<DiagramNode, "title" | "subtitle" | "text" | "rows">;
 export type JsonCanvas = { nodes: Rec[]; edges: Rec[] } & Rec;
-export type ImportResult = ParseResult<Diagram> & { warnings: string[] };
+export type ImportResult = ParseResult<Diagram>;
 
 // Preset colors Obsidian understands: 1 red, 2 orange, 3 yellow, 4 green, 5 cyan, 6 purple.
 const CATEGORY_PRESET: Record<string, string> = {
@@ -119,8 +119,9 @@ export function toJsonCanvas(diagram: Diagram): JsonCanvas {
         out.text = node.text ?? ""; // JSON Canvas requires text on text nodes
       }
     }
-    if (!node.color && category && CATEGORY_PRESET[category]) {
-      out.color = CATEGORY_PRESET[category];
+    const preset = category ? CATEGORY_PRESET[resolveCategory(category) ?? ""] : undefined;
+    if (!node.color && preset) {
+      out.color = preset;
       ext.derivedColor = true;
     }
     if (Object.keys(ext).length) out[EXT_KEY] = ext;
@@ -135,6 +136,10 @@ export function toJsonCanvas(diagram: Diagram): JsonCanvas {
     return style ? { ...rest, [EXT_KEY]: { style } } : { ...rest };
   });
 
+  // A plain canvas stays plain: the document block is only written when it carries CodeMap-only data.
+  // (A canvas title is its file name, so title alone is not worth a block.)
+  const usesExtensions = steps !== undefined || meta !== undefined || [...outNodes, ...outEdges].some((x) => EXT_KEY in x);
+  if (!usesExtensions) return { ...topRest, nodes: outNodes, edges: outEdges };
   const docExt: Rec = { version: 1, title };
   if (steps) docExt.steps = steps;
   if (meta) docExt.meta = meta;
@@ -227,5 +232,6 @@ export function fromJsonCanvas(input: unknown, opts: { title?: string } = {}): I
   };
   if (docExt.steps !== undefined) candidate.steps = repairSteps(docExt.steps, idsOf(outNodes), idsOf(outEdges), warnings);
   if (docExt.meta !== undefined) candidate.meta = docExt.meta;
-  return { ...parseDiagram(candidate), warnings };
+  const parsed = parseDiagram(candidate);
+  return { ...parsed, warnings: [...warnings, ...parsed.warnings] };
 }

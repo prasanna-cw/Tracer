@@ -1,0 +1,3 @@
+# Keep LF everywhere so fixtures and diffs are byte-stable across Windows/macOS/Linux.
+* text=auto eol=lf
+*.png binary

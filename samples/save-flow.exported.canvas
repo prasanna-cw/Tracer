@@ -4,9 +4,9 @@
 			"id": "db-group",
 			"type": "group",
 			"x": -30,
-			"y": 1060,
+			"y": 1140,
 			"width": 1180,
-			"height": 290,
+			"height": 330,
 			"label": "Database"
 		},
 		{
@@ -31,7 +31,7 @@
 			"y": 120,
 			"width": 800,
 			"height": 170,
-			"text": "## Risk register (form input)\n\n- *Risk # | Description | Probability | Impact | Tags | Actions*\n- R-101 | Steel supplier delivers late | High | Major | supply, vendor | Expedite PO; qualify second supplier\n- R-102 | Lead engineer leaves mid-project | Medium | Moderate | people | Cross-train; document handover",
+			"text": "## Risk register (form input)\n\n- *Risk # | Description | Probability | Impact | Tags | Actions*\n- R-101 | Steel supplier delivers late | High | Major | supply, vendor | Expedite PO; Qualify second supplier\n- R-102 | Lead engineer leaves mid-project | Medium | Moderate | people | Cross-train; Document handover",
 			"color": "3",
 			"codemap": {
 				"kind": "table",
@@ -43,14 +43,14 @@
 						"muted": true
 					},
 					{
-						"text": "R-101 | Steel supplier delivers late | High | Major | supply, vendor | Expedite PO; qualify second supplier"
+						"text": "R-101 | Steel supplier delivers late | High | Major | supply, vendor | Expedite PO; Qualify second supplier"
 					},
 					{
-						"text": "R-102 | Lead engineer leaves mid-project | Medium | Moderate | people | Cross-train; document handover"
+						"text": "R-102 | Lead engineer leaves mid-project | Medium | Moderate | people | Cross-train; Document handover"
 					}
 				],
 				"text": null,
-				"textHash": "975c6bc1",
+				"textHash": "8025c781",
 				"derivedColor": true
 			}
 		},
@@ -190,7 +190,7 @@
 			"id": "flush",
 			"type": "text",
 			"x": 320,
-			"y": 930,
+			"y": 990,
 			"width": 480,
 			"height": 100,
 			"text": "## Flush once per risk\n\n`entityManager.flush()` after all of a record's children are queued, so Hibernate sends one JDBC batch per table.",
@@ -208,9 +208,9 @@
 			"id": "tbl-record",
 			"type": "text",
 			"x": 0,
-			"y": 1110,
+			"y": 1190,
 			"width": 250,
-			"height": 200,
+			"height": 240,
 			"text": "## risk_record\n\n- *id | project_id | risk_no*\n- 1 | 7 | R-101\n- 2 | 7 | R-102",
 			"color": "5",
 			"codemap": {
@@ -238,10 +238,10 @@
 			"id": "tbl-cells",
 			"type": "text",
 			"x": 290,
-			"y": 1110,
+			"y": 1190,
 			"width": 250,
-			"height": 200,
-			"text": "## risk_cell_value\n\n- *record_id | column | value*\n- 1 | probability | High\n- 1 | impact | Major\n- 2 | probability | Medium",
+			"height": 240,
+			"text": "## risk_cell_value\n\n- *record_id | column | value*\n- 1 | description | Steel supplier delivers late\n- 1 | probability | High\n- 1 | impact | Major\n- 2 | description | Lead engineer leaves mid-project\n- 2 | probability | Medium\n- 2 | impact | Moderate",
 			"color": "5",
 			"codemap": {
 				"kind": "table",
@@ -253,17 +253,26 @@
 						"muted": true
 					},
 					{
+						"text": "1 | description | Steel supplier delivers late"
+					},
+					{
 						"text": "1 | probability | High"
 					},
 					{
 						"text": "1 | impact | Major"
 					},
 					{
+						"text": "2 | description | Lead engineer leaves mid-project"
+					},
+					{
 						"text": "2 | probability | Medium"
+					},
+					{
+						"text": "2 | impact | Moderate"
 					}
 				],
 				"text": null,
-				"textHash": "54980aa5",
+				"textHash": "f8a266da",
 				"derivedColor": true
 			}
 		},
@@ -271,9 +280,9 @@
 			"id": "tbl-tags",
 			"type": "text",
 			"x": 580,
-			"y": 1110,
+			"y": 1190,
 			"width": 250,
-			"height": 200,
+			"height": 240,
 			"text": "## risk_tag\n\n- *record_id | tag*\n- 1 | supply\n- 1 | vendor\n- 2 | people",
 			"color": "5",
 			"codemap": {
@@ -304,10 +313,10 @@
 			"id": "tbl-actions",
 			"type": "text",
 			"x": 870,
-			"y": 1110,
+			"y": 1190,
 			"width": 250,
-			"height": 200,
-			"text": "## risk_action\n\n- *record_id | seq | text*\n- 1 | 1 | Expedite PO\n- 1 | 2 | Qualify second supplier\n- 2 | 1 | Cross-train",
+			"height": 240,
+			"text": "## risk_action\n\n- *record_id | seq | text*\n- 1 | 1 | Expedite PO\n- 1 | 2 | Qualify second supplier\n- 2 | 1 | Cross-train\n- 2 | 2 | Document handover",
 			"color": "5",
 			"codemap": {
 				"kind": "table",
@@ -326,10 +335,13 @@
 					},
 					{
 						"text": "2 | 1 | Cross-train"
+					},
+					{
+						"text": "2 | 2 | Document handover"
 					}
 				],
 				"text": null,
-				"textHash": "001918c3",
+				"textHash": "89d4500e",
 				"derivedColor": true
 			}
 		},
@@ -337,7 +349,7 @@
 			"id": "note-deletes",
 			"type": "text",
 			"x": 0,
-			"y": 1410,
+			"y": 1530,
 			"width": 540,
 			"height": 140,
 			"text": "## After the loop: deletes\n\nTags and actions removed in the form are deleted once, after all records, with a single `DELETE ... WHERE id IN (...)` per table.",
@@ -353,7 +365,7 @@
 			"id": "note-batching",
 			"type": "text",
 			"x": 580,
-			"y": 1410,
+			"y": 1530,
 			"width": 540,
 			"height": 140,
 			"text": "## Result: 2 batches per table\n\nTwo risks give two flushes, so each table receives 2 insert batches instead of one INSERT per row.\n\nRequires `hibernate.jdbc.batch_size=50`, `order_inserts=true`, `order_updates=true`, and SEQUENCE ids (IDENTITY disables batching).",
@@ -421,26 +433,35 @@
 		{
 			"id": "e-record-flush",
 			"fromNode": "ent-record",
-			"toNode": "flush"
+			"fromSide": "bottom",
+			"toNode": "flush",
+			"toSide": "top"
 		},
 		{
 			"id": "e-cells-flush",
 			"fromNode": "ent-cells",
-			"toNode": "flush"
+			"fromSide": "bottom",
+			"toNode": "flush",
+			"toSide": "top"
 		},
 		{
 			"id": "e-tags-flush",
 			"fromNode": "ent-tags",
-			"toNode": "flush"
+			"fromSide": "bottom",
+			"toNode": "flush",
+			"toSide": "top"
 		},
 		{
 			"id": "e-actions-flush",
 			"fromNode": "ent-actions",
-			"toNode": "flush"
+			"fromSide": "bottom",
+			"toNode": "flush",
+			"toSide": "top"
 		},
 		{
 			"id": "e-flush-record",
 			"fromNode": "flush",
+			"fromSide": "bottom",
 			"toNode": "tbl-record",
 			"toSide": "top",
 			"label": "x2 batches"
@@ -448,6 +469,7 @@
 		{
 			"id": "e-flush-cells",
 			"fromNode": "flush",
+			"fromSide": "bottom",
 			"toNode": "tbl-cells",
 			"toSide": "top",
 			"label": "x2 batches"
@@ -455,6 +477,7 @@
 		{
 			"id": "e-flush-tags",
 			"fromNode": "flush",
+			"fromSide": "bottom",
 			"toNode": "tbl-tags",
 			"toSide": "top",
 			"label": "x2 batches"
@@ -462,6 +485,7 @@
 		{
 			"id": "e-flush-actions",
 			"fromNode": "flush",
+			"fromSide": "bottom",
 			"toNode": "tbl-actions",
 			"toSide": "top",
 			"label": "x2 batches"

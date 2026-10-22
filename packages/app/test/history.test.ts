@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Diagram } from "@codemap/core";
+import { moveGroup, type Diagram } from "@codemap/core";
 import { historyReducer, initHistory } from "../src/canvas/history";
 
 const d: Diagram = {
@@ -52,6 +52,23 @@ describe("history", () => {
     expect(h.present === h.saved).toBe(true);
     h = historyReducer(h, { type: "undo" });
     expect(h.present !== h.saved).toBe(true);
+  });
+
+  it("dragging a group moves its members, and one undo restores all of them", () => {
+    const g: Diagram = {
+      ...d,
+      nodes: [{ id: "g", type: "group", x: -5, y: -5, width: 100, height: 40 }, ...d.nodes],
+    };
+    let h = initHistory(g);
+    h = historyReducer(h, { type: "move", moves: moveGroup(g.nodes, "g", 95, 195) });
+    expect(h.present.nodes.map((n) => [n.id, n.x, n.y])).toEqual([
+      ["g", 95, 195],
+      ["a", 100, 200],
+      ["b", 150, 200],
+    ]);
+    h = historyReducer(h, { type: "undo" });
+    expect(h.present).toBe(g);
+    expect(h.past).toEqual([]);
   });
 
   it("only reallocates nodes that changed (keeps memoized node components cheap)", () => {

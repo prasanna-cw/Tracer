@@ -28,7 +28,7 @@ export async function exportCanvasFile(inPath: string, outPath: string): Promise
   const r = parseDiagram(await readJson(inPath));
   if (!r.ok) throw new Error(`${inPath} is not a valid diagram:\n  ${r.errors.join("\n  ")}`);
   await writeJson(outPath, toJsonCanvas(r.value), "\t"); // Obsidian writes tabs
-  return [];
+  return r.warnings;
 }
 
 export async function importCanvasFile(inPath: string, outPath: string): Promise<string[]> {

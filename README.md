@@ -36,7 +36,7 @@ Paths are relative to where you run the command.
 `npm run dev`, then open the URL Vite prints. Pick a diagram in the toolbar or link to one directly: `http://localhost:5173/#architecture.canvas`. Any `.diagram.json` or `.canvas` dropped into `samples/` shows up.
 
 | Action | How |
-|---|---|
+| --- | --- |
 | Pan / zoom / fit | drag the background, mouse wheel, bottom-left controls |
 | Move a node | drag (toggle **Snap** for a 20px grid); arrow keys on a focused node |
 | Details, open source | click a node |
