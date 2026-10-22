@@ -64,7 +64,7 @@ Each entry: what, why, alternative considered.
 ## D9. The architecture rule is enforced by ESLint
 
 - **What:** `packages/core/src/**` may not import `node:*`, `fs`, `path`, `vscode`, `react`.
-- **Phase 2 note:** ts-morph is filesystem-backed by default. Plan: the CLI reads files and hands core an in-memory file map (ts-morph `useInMemoryFileSystem`), keeping the analyzer pure and runnable in a VS Code host.
+- **Phase 2:** the analyzer lives in core but reads files only through the `FileSystemHost` port (D19); the CLI supplies a `node:fs` implementation.
 
 ## D10. Drags commit once, on drop
 
@@ -78,7 +78,7 @@ Each entry: what, why, alternative considered.
 
 ## D12. Samples are bundled, not fetched
 
-- **What:** `WebHost` lists and loads `samples/*.{json,canvas}` via `import.meta.glob` (hot-reloads in dev, baked into `vite build`). `loadGraph` still fetches `/graph.json` because it is generated.
+- **What:** `WebHost` lists and loads `samples/*.diagram.json` and `samples/*.canvas` via `import.meta.glob` (hot-reloads in dev, baked into `vite build`). `loadGraph` still fetches `/graph.json` because it is generated.
 - **Why:** No dev server middleware, and the static build works without a backend. Save cannot overwrite `samples/` from a browser anyway: Chromium saves through the File System Access API (the handle is remembered per diagram for the session), other browsers download.
 
 ## D13. React Flow type `cmgroup`, not `group`
@@ -89,6 +89,13 @@ Each entry: what, why, alternative considered.
 
 - `html-to-image` pinned to **1.11.11** (React Flow's recommendation; later versions regress on SVG). Panels (controls, minimap) are filtered out. Arrowhead markers live inside the captured element so they survive the clone.
 
+## D15. Phase 1 limits (deliberate)
+
+- Colored edges keep the default arrowhead color (SVG markers cannot inherit stroke in Chromium yet).
+- No node creation, deletion or connecting by drag. Delete/Backspace are disabled so nothing vanishes silently.
+- Exiting the walkthrough keeps the current zoom. Use fit view (bottom-left) to see everything.
+- Inline markdown is a deliberate subset (`Markdown.tsx`).
+
 ## D16. Group drag moves members
 
 - **What:** When a group drag starts, its members (nodes fully inside its rect, nested groups included: `groupMembers`) are snapshotted; every position change is fanned out to them, and the drop commits group + members as **one** `move` (one undo step). Keyboard nudges of a group carry members too (`moveGroup`). Members that are themselves selected and dragged are not moved twice.
@@ -97,16 +104,49 @@ Each entry: what, why, alternative considered.
 
 - **What:** `findUnknownKeys(diagram)` lists keys outside the schema (`meta` is free-form and not scanned). The web app logs them with `console.warn` in dev builds only; they are never errors and never stripped. Expect JSON Canvas plugin fields to show up there.
 
-## D15. Phase 1 limits (deliberate)
+## D18. Analyzer: TypeScript compiler API, not ts-morph
 
-- Colored edges keep the default arrowhead color (SVG markers cannot inherit stroke in Chromium yet).
-- No node creation, deletion or connecting by drag. Delete/Backspace are disabled so nothing vanishes silently.
-- Exiting the walkthrough keeps the current zoom. Use fit view (bottom-left) to see everything.
-- Inline markdown is a deliberate subset (`Markdown.tsx`).
+- **What:** `ts.createSourceFile` to parse and `ts.resolveModuleName` to resolve, from the `typescript` package directly. This challenges the stack decision in the brief.
+- **Why:** The analyzer needs exactly two things: the import specifiers of each file and their resolution. ts-morph wraps every AST node in an object and holds a Project of all files. At 2,000+ files that is memory and time spent on wrappers we never use. The raw API keeps one file's AST alive at a time; only specifier strings survive (pass 1), then resolution runs (pass 2). Resolution is TypeScript's own, so `paths`, `baseUrl`, `extends`, index files and `.js` → `.ts` all behave exactly as `tsc` does.
+- **Counted:** `import`, `export … from`, `import x = require()`, `require("…")` (in any file type), `import("…")` with a string or plain template literal. Type-only imports count (they are dependencies too). Self-imports are dropped; edges are deduplicated.
+- **Syntax errors:** read from the parser's `parseDiagnostics`. That property is internal, but it has been stable for a decade, and the public alternatives parse every file twice. The file is skipped and a warning names its line.
+- **Alternative:** ts-morph as specified. Worth revisiting only if we need type information (call graphs), at which point a full Program is needed anyway.
+
+## D19. `FileSystemHost` port; separate `@codemap/core/analyzer` entry
+
+- **What:** The analyzer's only I/O is a five-method port (`readFile`, `fileExists`, `directoryExists`, `readDirectory`, optional `realpath`) with absolute forward-slash paths. The CLI implements it with `node:fs` (lazy reads; symlinked dirs not followed during the walk, to avoid loops). Tests use an in-memory map. The port is synchronous because `ts.resolveModuleName` is.
+- **Separate entry:** `@codemap/core/analyzer` pulls in the TypeScript compiler (several MB). The app imports only `@codemap/core`; the production bundle confirms it never ships.
+- **VS Code:** the extension host has `node:fs`, so it reuses the CLI's implementation. `workspace.fs` is async and would not fit.
+
+## D20. What "unresolved" means
+
+- **What:** Every import ends up in exactly one bucket:
+  - **edge:** it resolves to a file we analyzed. This holds even when TypeScript calls it an external library, because npm workspaces resolve `@codemap/core` through a `node_modules` symlink whose real path is in the repo.
+  - **asset:** a non-code file that exists (`./app.css`, `./data.json`).
+  - **unresolved:** a relative, absolute or tsconfig-alias specifier that points nowhere. Up to 200 are listed with their file.
+  - **external:** everything else (`react`, `node:fs`).
+- **Why:** The brief lumped external and unresolved together. Separating them makes `unresolvedCount` mean "broken", which is the number worth watching. Both bugs this rule fixes (workspaces counted as external, CSS counted as unresolved) were found by analyzing this repo.
+- **Limits (`ponytail:` in code):** only the root `tsconfig.json` and root `.gitignore` are read, and gitignore negation (`!x`) is not supported (it is reported as a warning). In a monorepo whose packages have their own `paths`, aliases inside those packages show up as external. Upgrade path: per-directory tsconfig lookup, and the `ignore` package.
+
+## D21. Deterministic, shareable graph.json
+
+- **What:** Nodes and edges are sorted by code point (not `localeCompare`, which differs by locale). Timing is printed but not written. `root` is the folder name only, never an absolute path. Re-running on unchanged code gives a byte-identical file, so `samples/demo-graph.json` is committed, and a test fails if it drifts from a fresh analysis (`npm run analyze:demo` regenerates it).
+
+## D22. Graph view: canvas + layout in a Web Worker
+
+- **What:** One `<canvas>`. Edges are batched into one path per style (plain, cycle, focused) and nodes into one path per color/brightness bucket. Labels are drawn in screen space and culled to the viewport, and arrowheads appear from zoom 1.2. Hit testing uses a d3-quadtree, rebuilt lazily after the layout moves. The d3-force simulation runs in `layout.worker.ts` (`layoutEngine.ts` is DOM-free and unit-tested) and posts a `Float32Array` of positions per frame, plus a generation number so stale frames are dropped.
+- **Why the worker:** At 2,000 files / 6,000 imports one tick costs ~25 ms (Barnes-Hut repulsion 14 ms, collision 7 ms). On the main thread the view ran at ~21 fps while laying out. With the worker, measured in Chrome via Playwright with a synthetic graph of that size: **55 fps during layout, 61 fps pan/zoom/hover/node-drag**. Collision is skipped above 1,000 nodes (layout reads fine without it, and it settles faster).
+- **Colors:** by top-level folder, measured below the folder every file shares (a repo that is all `src/` would otherwise be one color). Six theme tokens (`--graph-1..6`) cycle in sorted folder order.
+- **Alternative:** SVG (too slow past a few hundred nodes); WebGL (unnecessary at this scale; revisit past ~20k edges).
+
+## D23. Demo repo as the permanent fixture
+
+- `samples/demo-repo/` (25 analyzable files + 1 deliberately broken) covers every import form, aliases, barrels, a 3-file cycle, an orphan, tests and unresolvable imports, with exact expected numbers in its README. It is excluded from our ESLint and vitest runs. The app falls back to its committed graph when `packages/app/public/graph.json` (git-ignored) is absent.
 
 ## Phase 3 seams (not built)
 
 - **VS Code host:** implements `HostAdapter` with `postMessage` request/response (id-correlated). It serves the same Vite bundle in a webview with a nonce CSP and watches `**/*.diagram.json`, `**/*.canvas` and `graph.json`. Nothing in core or the renderers touches I/O, so the bundle is host-agnostic.
 - **Custom editor:** `CustomTextEditorProvider` for `*.diagram.json`, so VS Code owns undo/dirty state at the document level, plus an `Open Graph View` command.
+- **Graph in VS Code:** the extension runs `analyzeRepo` in the extension host with the CLI's `node:fs` host and posts the graph to the webview (`loadGraph`); a file watcher re-runs it. The webview CSP needs `worker-src` for the bundled layout worker (same origin, so nonce + `worker-src 'self'` suffices).
 - **LLM generation:** prompt with the `diagramSchema` (convertible to JSON Schema via zod 4's `z.toJSONSchema`), validate with `parseDiagram`, retry with the `errors` array.
 - **Staleness:** extend `source` with `hash` (content hash of the referenced range or file). The host recomputes and the canvas badges nodes whose hash differs. Because `source` is loose today, adding the field is backward compatible.

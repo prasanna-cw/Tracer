@@ -164,7 +164,11 @@ function gitignore(fs: FileSystemHost, root: string, warnings: string[]): Ignore
   return matches;
 }
 
-/** tsconfig.json at the root if present (paths aliases, baseUrl, extends); JS is always included. */
+/**
+ * tsconfig.json at the root if present (paths aliases, baseUrl, extends); JS is always included.
+ * ponytail: root tsconfig only. Packages with their own `paths` in a monorepo will show those aliases as
+ * external; upgrade path: look up the nearest tsconfig per directory and cache options per config.
+ */
 function compilerOptions(fs: FileSystemHost, root: string, warnings: string[]): ts.CompilerOptions {
   const defaults: ts.CompilerOptions = {
     allowJs: true,

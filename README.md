@@ -18,9 +18,42 @@ npm run build      # typecheck + production build
 
 ```powershell
 npm run analyze -- --root C:\path\to\repo --out packages/app/public/graph.json
+npm run dev    # then open the Graph tab (or http://localhost:5173/#graph)
 ```
 
-(Phase 2. Until then, the command prints a notice and exits.)
+The analyzer reads TypeScript and JavaScript (`.ts .tsx .js .jsx .mjs .cjs`), honors the root `tsconfig.json` (`paths`, `baseUrl`, `extends`) and the root `.gitignore`, and skips `node_modules`, `dist`, `build`, `.git`, `coverage`. It prints a summary:
+
+```text
+files       25 (+1 skipped)
+edges       29
+unresolved  3
+external    5
+assets      0
+cycles      1 (3 edges)
+time        135 ms
+```
+
+- **unresolved**: relative or alias imports that point nowhere (listed in `graph.json` under `summary.unresolved`).
+- **external**: packages and builtins (`react`, `node:fs`). Imports of your own npm workspace packages count as edges.
+- **assets**: existing non-code files (`./app.css`).
+- **skipped**: files with syntax errors (a warning names the line).
+
+`packages/app/public/graph.json` is git-ignored. Without it, the Graph tab shows `samples/demo-graph.json`, the committed analysis of `samples/demo-repo`. Regenerate that with `npm run analyze:demo`; a test fails if it is stale.
+
+## Graph view
+
+| Action | How |
+| --- | --- |
+| Pan / zoom | drag the background, mouse wheel; **Fit** in the controls |
+| Highlight a file's neighbors | hover it |
+| Imports / imported-by | click a file (the lists are clickable); Esc clears |
+| Open source | double-click a file, or **Open source** in the details panel |
+| Move a file | drag it (pinned while dragging) |
+| Find files | search box (path substring); Enter jumps to the first match |
+| Filter | hide orphans, hide tests (`*.test.*`, `*.spec.*`, `__tests__/`), per folder |
+| Local graph | depth slider 1-3 around the selected file |
+| Cycles | **Highlight cycles** colors import cycles |
+| Layout | center/repel/link force, link distance, node size, label zoom (live) |
 
 ## Convert to and from Obsidian
 
@@ -54,5 +87,6 @@ Paths are relative to where you run the command.
 
 - `packages/core`: schema, JSON Canvas I/O, graph, analyzer. No DOM, React, VS Code or fs (enforced by ESLint).
 - `packages/app`: Vite + React web prototype.
-- `packages/cli`: `analyze` command.
+- `packages/cli`: `analyze`, `export:canvas`, `import:canvas` commands.
+- `samples/demo-repo`: synthetic project the analyzer tests run against; `samples/demo-graph.json` is its committed graph.
 - `docs/SCHEMA.md`: diagram format. `docs/DECISIONS.md`: why things are the way they are.

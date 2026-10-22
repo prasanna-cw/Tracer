@@ -78,6 +78,29 @@ steps[0].edgeIds[0]: unknown edge "nope"
 - `toJsonCanvas(diagram)` returns a valid `.canvas` object. Rich nodes become markdown text; extension fields are kept under a `codemap` key (on nodes, edges, and the document) so `fromJsonCanvas(toJsonCanvas(d))` is lossless.
 - `fromJsonCanvas(json, { title })` accepts any JSON Canvas and returns `{ ok, value | errors, warnings }`. If a rich node's markdown was edited in Obsidian (detected via `codemap.textHash`), the markdown wins and is parsed back into `title/subtitle/text/rows`. Walkthrough steps pointing at nodes or edges deleted in Obsidian are pruned. Every repair is listed in `warnings`. See `docs/DECISIONS.md` D4 and D5.
 
+## graph.json (analyzer output)
+
+Written by `npm run analyze` and validated by `codeGraphSchema` when the app loads it. Paths are relative to the analyzed root, with forward slashes; `root` is the folder name only.
+
+```json
+{
+  "version": 1,
+  "root": "demo-repo",
+  "nodes": [
+    { "id": "src/core/format.ts", "path": "src/core/format.ts", "folder": "src/core", "ext": "ts", "loc": 3, "inDegree": 4, "outDegree": 1 }
+  ],
+  "edges": [{ "source": "src/core/store.ts", "target": "src/core/format.ts" }],
+  "summary": {
+    "fileCount": 25, "skippedCount": 1, "edgeCount": 29,
+    "unresolvedCount": 3, "externalCount": 5, "assetCount": 0, "cycleCount": 1,
+    "unresolved": [{ "from": "src/broken/missing.ts", "specifier": "./does-not-exist" }],
+    "warnings": ["src/broken/syntax-error.ts:3: syntax error (Expression expected.); skipped"]
+  }
+}
+```
+
+`id` equals `path`. Edges are deduplicated and sorted, and the output is byte-identical for unchanged input. See `docs/DECISIONS.md` D20-D21.
+
 ## Example
 
 ```json
