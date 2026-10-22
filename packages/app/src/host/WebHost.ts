@@ -1,4 +1,13 @@
-import { findUnknownKeys, fromJsonCanvas, parseDiagram, toJsonCanvas, type CodeGraph, type Diagram } from "@codemap/core";
+import {
+  codeGraphSchema,
+  findUnknownKeys,
+  formatIssues,
+  fromJsonCanvas,
+  parseDiagram,
+  toJsonCanvas,
+  type CodeGraph,
+  type Diagram,
+} from "@codemap/core";
 import type { HostAdapter } from "./HostAdapter";
 
 // Samples are bundled at build time (and hot-reloaded in dev), so the prototype needs no server.
@@ -60,10 +69,18 @@ export class WebHost implements HostAdapter {
     await w.close();
   }
 
+  /** packages/app/public/graph.json (from `npm run analyze`) if present, else the committed demo graph. */
   async loadGraph(): Promise<CodeGraph> {
-    const res = await fetch("/graph.json");
-    if (!res.ok) throw new Error("No graph.json yet. Run: npm run analyze -- --root <repo> --out packages/app/public/graph.json");
-    return (await res.json()) as CodeGraph; // validated in Phase 2
+    const res = await fetch("/graph.json").catch(() => undefined);
+    // Vite's dev server answers unknown paths with index.html (200), so check the content type, not just the status.
+    if (res?.ok && res.headers.get("content-type")?.includes("json")) {
+      const r = codeGraphSchema.safeParse(await res.json());
+      if (!r.success) throw new Error(`graph.json is not a CodeMap graph:\n${formatIssues(r.error).join("\n")}`);
+      return r.data;
+    }
+    this.notify("Showing the demo graph (samples/demo-repo). Analyze your own repo: npm run analyze -- --root <path> --out packages/app/public/graph.json");
+    const demo: unknown = (await import("../../../../samples/demo-graph.json")).default;
+    return codeGraphSchema.parse(demo);
   }
 
   async openSource(path: string, line?: number): Promise<void> {
