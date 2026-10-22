@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "allowJs": true,
+    "strict": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@core": ["src/core/index.ts"],
+      "@core/*": ["src/core/*"],
+      "@ui": ["src/ui/index.ts"],
+      "@utils": ["src/utils/index.js"]
+    }
+  },
+  "include": ["src"]
+}

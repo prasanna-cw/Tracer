@@ -3,7 +3,8 @@ import reactHooks from "eslint-plugin-react-hooks";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["**/dist/**", "**/node_modules/**", "**/coverage/**", "**/test/fixtures/**"] },
+  // samples/ holds fixtures (the demo repo has a deliberate syntax error), not our code.
+  { ignores: ["**/dist/**", "**/node_modules/**", "**/coverage/**", "samples/**"] },
   js.configs.recommended,
   ...tseslint.configs.strict,
   {
