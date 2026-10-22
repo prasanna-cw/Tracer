@@ -78,6 +78,28 @@ Paths are relative to where you run the command.
 | Save | Ctrl+S (Chrome/Edge: pick a file once, later saves write to it; other browsers download) |
 | Walkthrough | toolbar button; Left/Right to step, Esc to exit, **Play** for 2.5s autoplay |
 
+## VS Code extension
+
+Build and install it locally (it is not published, and must not be until publisher/license are set):
+
+```powershell
+npm install
+npm run package                     # -> packages\extension\codemap-studio.vsix
+code --install-extension packages\extension\codemap-studio.vsix
+```
+
+Then, in VS Code:
+
+- open any `*.diagram.json` or `*.canvas`: it opens in the **CodeMap Diagram** editor (right-click the tab, "Reopen Editor With…" for the text);
+- Command Palette: **CodeMap: Open Graph View** (import graph of the first workspace folder), **CodeMap: Open Diagram**;
+- setting **codemap.theme**: `auto` (follows VS Code light/dark), `clean`, `obsidian`.
+
+To uninstall: `code --uninstall-extension todo-publisher.codemap-studio-vscode`.
+
+Develop: open this repo in VS Code and press **F5** ("Run CodeMap extension": builds, then opens `samples/demo-repo` in an Extension Development Host). Integration tests in a real VS Code: `npm run test:vscode` (downloads VS Code, about 350 MB, on first run).
+
+**Permissions and data handling** (details in `packages/extension/README.md`): no network access and no telemetry; activates only on its commands or when a diagram file is opened; reads the diagram you open and, for the graph, the source files, `tsconfig.json`/`package.json` and `.gitignore` of the first workspace folder; writes only the document (through VS Code) and exports you place in a save dialog; opens source files only inside the workspace.
+
 ## Samples
 
 - `samples/save-flow.diagram.json`: native diagram with a 9-step walkthrough.
@@ -88,6 +110,7 @@ Paths are relative to where you run the command.
 - `packages/core`: schema, JSON Canvas I/O, graph, analyzer. No DOM, React, VS Code or fs (enforced by ESLint).
 - `packages/app`: Vite + React web prototype.
 - `packages/cli`: `analyze`, `export:canvas`, `import:canvas` commands.
+- `packages/extension`: the VS Code extension (custom editor, graph command, webview host).
 - `samples/demo-repo`: synthetic project the analyzer tests run against; `samples/demo-graph.json` is its committed graph.
 - `samples/monorepo`: npm-workspaces fixture for per-package tsconfig resolution.
 - `docs/SCHEMA.md`: diagram format. `docs/DECISIONS.md`: why things are the way they are.

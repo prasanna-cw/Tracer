@@ -13,6 +13,7 @@ Each entry: what, why, alternative considered.
 - **What:** TypeScript 5.9, vitest 3.2, Vite 7, ESLint 10, zod 4.
 - **Why:** TS 7 (native) is not yet supported by typescript-eslint (`<6.1`). vitest 4 crashes npm 10.8's installer (`Cannot read properties of null (reading 'edgesOut')`, arborist peer-set bug), and vitest 5 needs Node 22. Vite 8 works on Node 20.19+ but 7 is the better-trodden path with plugin-react 5.
 - **Alternative:** Require Node 22 + npm 11 and take the latest of everything. Cheap to do later; bump together.
+- **Phase 3a:** `@vscode/vsce` 3.9 and `@vscode/test-electron` 2.5 for the same reason (their latest majors need Node 22). `@types/vscode` is pinned to 1.90.0 to match `engines.vscode: ^1.90.0`.
 
 ## D3. Every schema object is loose (unknown fields preserved)
 
@@ -144,10 +145,38 @@ Each entry: what, why, alternative considered.
 
 - `samples/demo-repo/` (25 analyzable files + 1 deliberately broken) covers every import form, aliases, barrels, a 3-file cycle, an orphan, tests and unresolvable imports, with exact expected numbers in its README. It is excluded from our ESLint and vitest runs. The app falls back to its committed graph when `packages/app/public/graph.json` (git-ignored) is absent.
 
+## D24. Webview protocol in core, validated both ways
+
+- **What:** `core/src/protocol/messages.ts` declares each request once (`methods`: params schema + result schema). The webview sends `{kind: "request", id, method, params}` and gets exactly one `response`; the extension pushes `event`s (`theme`, `documentChanged`, `documentInvalid`). The extension validates every request before a handler runs (`parseToHost`) and every response/event before posting (`okResponse`/`hostEvent` throw, so a handler bug becomes an error response, never bad data). The webview validates every message and each result against its method (`parseToWebview`, `parseResult`).
+- **Why:** the webview renders file contents, so the extension treats it as untrusted, and vice versa. One table gives the types on both sides too.
+- **Alternative:** hand-written message types with no runtime checks.
+
+## D25. Custom editor: the TextDocument is the source of truth
+
+- **What:** `CustomTextEditorProvider` for `*.diagram.json` and `*.canvas`. Each committed change in the webview (`applyEdit`) replaces the document text with one `WorkspaceEdit`: one VS Code undo step, VS Code's dirty dot, VS Code's save (and Ctrl+S/Z/Y are left to VS Code inside the webview). Changes from elsewhere (undo/redo, a text editor, VS Code reloading the file) come back as `documentChanged`; the app replaces its diagram without refitting the view. An explicit file watcher follows saves from outside (e.g. Obsidian) immediately, and warns instead of overwriting when the document has unsaved changes. The extension remembers the text the webview shows, so its own edits are never echoed back.
+- **Format:** `.canvas` stays JSON Canvas (tab-indented, `codemap` stash) and `.diagram.json` stays native, via the shared `diagramToText`/`textToDiagram` in core, the same helpers the web prototype uses.
+- **Alternative:** `CustomEditorProvider` with our own undo stack and backups (more control, much more code, and edits would no longer be plain text edits).
+
+## D26. Webview security
+
+- **CSP:** `default-src 'none'`; scripts only with the per-load nonce or from the extension's resource origin (for lazily imported chunks); `worker-src blob:`; `connect-src` limited to the extension's resources and `data:`/`blob:` (no `http(s)`, so no network); styles allow `'unsafe-inline'` because React sets `style` attributes. `localResourceRoots` is the extension's `dist` folder only.
+- **Layout worker inlined** (`?worker&inline`, a `blob:` worker): a webview cannot start a Worker from its resource URL (it is cross-origin to the webview document). This replaces the Phase 2 plan of `worker-src 'self'`, which would not have worked.
+- **Webview build** (`vite --mode webview`): relative asset paths, **no `public/` folder** (it may hold a local `graph.json` of the user's code, which the first build almost shipped inside the .vsix), and the web-only host and its bundled samples compiled out.
+- **Host operations from the webview are fenced:** `openSource` only opens relative paths inside a workspace folder (or next to the diagram), with no `..`; `exportFile` takes a plain file name and always goes through a save dialog.
+
+## D27. Graph command: analyzer in a worker thread
+
+- **What:** "CodeMap: Open Graph View" runs `analyzeRepo` with the CLI's `node:fs` host in a `worker_threads` worker (`dist/analyzerWorker.js`) under a cancellable progress notification. Warnings and unresolved imports go to the CodeMap output channel. The TypeScript compiler (3.4 MB) lives only in that worker bundle; `extension.js` (460 kB) never loads it.
+- **Why:** analysis takes seconds on a large repo, and the extension host is shared by every extension.
+
+## D28. Integration tests in a real VS Code
+
+- **What:** `@vscode/test-electron` downloads a VS Code build (cached in the OS temp folder) and runs `test/e2e/suite.ts` with only this extension enabled, on `samples/demo-repo`. The extension exports `statusOf(uri)`: the webview reports `loaded`/`error` (with the node count or the error), so tests can assert a document actually rendered through the CSP, the bundle and the protocol. A small harness replaces mocha.
+- **Windows quirks handled in `runTests.ts`:** (1) `ELECTRON_RUN_AS_NODE` is inherited when tests are started from a terminal inside VS Code, and makes the test VS Code start as plain Node, so it is removed. (2) Paths with spaces (`rust learning`) are split by the launcher, so a space-free junction to the repo is created in the temp folder.
+- **Tested version:** the current stable VS Code (1.143.0 at the time), not the `engines` minimum (1.90).
+
 ## Phase 3 seams (not built)
 
-- **VS Code host:** implements `HostAdapter` with `postMessage` request/response (id-correlated). It serves the same Vite bundle in a webview with a nonce CSP and watches `**/*.diagram.json`, `**/*.canvas` and `graph.json`. Nothing in core or the renderers touches I/O, so the bundle is host-agnostic.
-- **Custom editor:** `CustomTextEditorProvider` for `*.diagram.json`, so VS Code owns undo/dirty state at the document level, plus an `Open Graph View` command.
-- **Graph in VS Code:** the extension runs `analyzeRepo` in the extension host with the CLI's `node:fs` host and posts the graph to the webview (`loadGraph`); a file watcher re-runs it. The webview CSP needs `worker-src` for the bundled layout worker (same origin, so nonce + `worker-src 'self'` suffices).
-- **LLM generation:** prompt with the `diagramSchema` (convertible to JSON Schema via zod 4's `z.toJSONSchema`), validate with `parseDiagram`, retry with the `errors` array.
+- **Graph refresh:** re-run the analysis on file changes (debounced `FileSystemWatcher` on source files) and push the new graph as an event; today the command re-analyzes on each run.
+- **LLM generation:** prompt with the `diagramSchema` (convertible to JSON Schema via zod 4's `z.toJSONSchema`), validate with `parseDiagram`, retry with the `errors` array. In the extension this is one more request/handler pair in the protocol.
 - **Staleness:** extend `source` with `hash` (content hash of the referenced range or file). The host recomputes and the canvas badges nodes whose hash differs. Because `source` is loose today, adding the field is backward compatible.
