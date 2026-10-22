@@ -1,0 +1,18 @@
+{
+	"nodes":[
+		{"id":"b1f0a7c2d9e34a11","type":"group","x":-40,"y":-60,"width":760,"height":420,"label":"Backend","color":"4"},
+		{"id":"5a2c8e1f0b7d4c33","type":"text","x":-500,"y":80,"width":300,"height":120,"text":"## Web client\nReact SPA served from the CDN."},
+		{"id":"7d3e9f2a1c6b4e55","type":"text","x":0,"y":0,"width":280,"height":120,"text":"## API gateway\nAuth, rate limits, routing.","color":"6"},
+		{"id":"9e4f0a3b2d7c4f77","type":"text","x":400,"y":0,"width":280,"height":120,"text":"## Risk service\nOwns the risk register."},
+		{"id":"2c6a1e4f9b3d4a99","type":"text","x":400,"y":200,"width":280,"height":120,"text":"## PostgreSQL\nrisk_record, risk_tag, risk_action","color":"5"},
+		{"id":"4f8b2d6e0a1c4bbb","type":"file","x":-500,"y":260,"width":280,"height":120,"file":"docs/DECISIONS.md"},
+		{"id":"6a0c4e8b2f3d4ddd","type":"link","x":800,"y":0,"width":300,"height":120,"url":"https://jsoncanvas.org/spec/1.0/"}
+	],
+	"edges":[
+		{"id":"c1d2e3f4a5b6c7d8","fromNode":"5a2c8e1f0b7d4c33","fromSide":"right","toNode":"7d3e9f2a1c6b4e55","toSide":"left","label":"HTTPS"},
+		{"id":"d2e3f4a5b6c7d8e9","fromNode":"7d3e9f2a1c6b4e55","fromSide":"right","toNode":"9e4f0a3b2d7c4f77","toSide":"left","label":"gRPC"},
+		{"id":"e3f4a5b6c7d8e9fa","fromNode":"9e4f0a3b2d7c4f77","fromSide":"bottom","toNode":"2c6a1e4f9b3d4a99","toSide":"top","label":"JDBC batches","color":"5"},
+		{"id":"f4a5b6c7d8e9fab0","fromNode":"4f8b2d6e0a1c4bbb","fromSide":"top","toNode":"7d3e9f2a1c6b4e55","toSide":"bottom","toEnd":"none"},
+		{"id":"a5b6c7d8e9fab0c1","fromNode":"9e4f0a3b2d7c4f77","fromSide":"right","toNode":"6a0c4e8b2f3d4ddd","toSide":"left","label":"format spec"}
+	]
+}

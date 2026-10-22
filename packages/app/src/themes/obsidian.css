@@ -1,0 +1,29 @@
+/* Obsidian: dark, dotted grid, dark cards with 1px borders, muted category accents, hover glow. Tokens only. */
+:root[data-theme="obsidian"] {
+  color-scheme: dark;
+  --bg: #1e1e1e;
+  --surface: #262626;
+  --surface-2: #2f2f2f;
+  --border: #3c3c3c;
+  --text: #dcddde;
+  --muted: #a3a3a3;
+  --accent: #a88bfa;
+  --focus: #b9a3ff;
+  --grid: #444444;
+  --edge: #7a7a7a;
+  --edge-active: #b9a3ff;
+  --label-bg: #2a2a2a;
+  --group-fill: rgba(255, 255, 255, 0.02);
+  --group-border: #555555;
+  --dim-opacity: 0.25;
+  --glow: 0 0 0 1px var(--c-stroke), 0 0 14px color-mix(in srgb, var(--c-stroke) 45%, transparent);
+
+  --cat-plain-fill: #262626;    --cat-plain-stroke: #444444;   --cat-plain-text: #dcddde;
+  --cat-layer-fill: #29253a;    --cat-layer-stroke: #6f60aa;   --cat-layer-text: #cfc4ff;
+  --cat-entity-fill: #312720;   --cat-entity-stroke: #a06d42;  --cat-entity-text: #f3c7a1;
+  --cat-db-fill: #1f2d31;       --cat-db-stroke: #468a9a;      --cat-db-text: #a5dde9;
+  --cat-service-fill: #212e27;  --cat-service-stroke: #478b5e; --cat-service-text: #ace3bd;
+  --cat-data-fill: #2f2c1d;     --cat-data-stroke: #94843a;    --cat-data-text: #eedd91;
+  --cat-note-fill: #2a2a2a;     --cat-note-stroke: #555555;    --cat-note-text: #d2d2d2;
+  --cat-warning-fill: #33211f;  --cat-warning-stroke: #a35454; --cat-warning-text: #f4b2b2;
+}

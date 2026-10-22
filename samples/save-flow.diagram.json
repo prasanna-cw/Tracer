@@ -1,0 +1,207 @@
+{
+  "version": 1,
+  "title": "Saving a risk assessment",
+  "nodes": [
+    {
+      "id": "db-group",
+      "type": "group",
+      "label": "Database",
+      "x": -30, "y": 1060, "width": 1180, "height": 290
+    },
+    {
+      "id": "start",
+      "type": "text",
+      "kind": "start",
+      "title": "User clicks Save",
+      "x": 420, "y": 0, "width": 280, "height": 60
+    },
+    {
+      "id": "input",
+      "type": "text",
+      "kind": "table",
+      "category": "data",
+      "title": "Risk register (form input)",
+      "rows": [
+        { "text": "Risk # | Description | Probability | Impact | Tags | Actions", "muted": true },
+        { "text": "R-101 | Steel supplier delivers late | High | Major | supply, vendor | Expedite PO; qualify second supplier" },
+        { "text": "R-102 | Lead engineer leaves mid-project | Medium | Moderate | people | Cross-train; document handover" }
+      ],
+      "x": 160, "y": 120, "width": 800, "height": 170
+    },
+    {
+      "id": "controller",
+      "type": "text",
+      "kind": "layer",
+      "category": "layer",
+      "title": "Controller",
+      "subtitle": "RiskController.saveRiskAssessment()",
+      "text": "Thin: validates the request DTO and calls the service. No persistence logic.",
+      "source": { "path": "src/main/java/app/risk/RiskController.java", "line": 42 },
+      "x": 320, "y": 350, "width": 480, "height": 110
+    },
+    {
+      "id": "service",
+      "type": "text",
+      "kind": "layer",
+      "category": "service",
+      "title": "Service layer",
+      "subtitle": "RiskService.save() · @Transactional",
+      "rows": [
+        { "text": "One transaction for the whole save" },
+        { "text": "Load existing records, tags and actions once, before the loop" },
+        { "text": "Per risk: saveAll() for each child collection" },
+        { "text": "One flush per risk record" }
+      ],
+      "source": { "path": "src/main/java/app/risk/RiskService.java", "line": 88 },
+      "x": 320, "y": 520, "width": 480, "height": 180
+    },
+    {
+      "id": "ent-record",
+      "type": "text",
+      "kind": "entity",
+      "category": "entity",
+      "title": "RiskRecord",
+      "text": "One row per risk; parent of every child row.",
+      "x": 0, "y": 760, "width": 250, "height": 110
+    },
+    {
+      "id": "ent-cells",
+      "type": "text",
+      "kind": "entity",
+      "category": "data",
+      "title": "RiskCellValue",
+      "text": "One row per column value (Description, Probability, Impact).",
+      "x": 290, "y": 760, "width": 250, "height": 110
+    },
+    {
+      "id": "ent-tags",
+      "type": "text",
+      "kind": "entity",
+      "category": "service",
+      "title": "RiskTag",
+      "text": "Tag links; replaced as a set on every save.",
+      "x": 580, "y": 760, "width": 250, "height": 110
+    },
+    {
+      "id": "ent-actions",
+      "type": "text",
+      "kind": "entity",
+      "category": "warning",
+      "title": "RiskAction",
+      "text": "Ordered mitigation actions.",
+      "x": 870, "y": 760, "width": 250, "height": 110
+    },
+    {
+      "id": "flush",
+      "type": "text",
+      "kind": "note",
+      "category": "warning",
+      "title": "Flush once per risk",
+      "text": "`entityManager.flush()` after all of a record's children are queued, so Hibernate sends one JDBC batch per table.",
+      "x": 320, "y": 930, "width": 480, "height": 100
+    },
+    {
+      "id": "tbl-record",
+      "type": "text",
+      "kind": "table",
+      "category": "db",
+      "title": "risk_record",
+      "rows": [
+        { "text": "id | project_id | risk_no", "muted": true },
+        { "text": "1 | 7 | R-101" },
+        { "text": "2 | 7 | R-102" }
+      ],
+      "x": 0, "y": 1110, "width": 250, "height": 200
+    },
+    {
+      "id": "tbl-cells",
+      "type": "text",
+      "kind": "table",
+      "category": "db",
+      "title": "risk_cell_value",
+      "rows": [
+        { "text": "record_id | column | value", "muted": true },
+        { "text": "1 | probability | High" },
+        { "text": "1 | impact | Major" },
+        { "text": "2 | probability | Medium" }
+      ],
+      "x": 290, "y": 1110, "width": 250, "height": 200
+    },
+    {
+      "id": "tbl-tags",
+      "type": "text",
+      "kind": "table",
+      "category": "db",
+      "title": "risk_tag",
+      "rows": [
+        { "text": "record_id | tag", "muted": true },
+        { "text": "1 | supply" },
+        { "text": "1 | vendor" },
+        { "text": "2 | people" }
+      ],
+      "x": 580, "y": 1110, "width": 250, "height": 200
+    },
+    {
+      "id": "tbl-actions",
+      "type": "text",
+      "kind": "table",
+      "category": "db",
+      "title": "risk_action",
+      "rows": [
+        { "text": "record_id | seq | text", "muted": true },
+        { "text": "1 | 1 | Expedite PO" },
+        { "text": "1 | 2 | Qualify second supplier" },
+        { "text": "2 | 1 | Cross-train" }
+      ],
+      "x": 870, "y": 1110, "width": 250, "height": 200
+    },
+    {
+      "id": "note-deletes",
+      "type": "text",
+      "kind": "note",
+      "category": "note",
+      "title": "After the loop: deletes",
+      "text": "Tags and actions removed in the form are deleted once, after all records, with a single `DELETE ... WHERE id IN (...)` per table.",
+      "x": 0, "y": 1410, "width": 540, "height": 140
+    },
+    {
+      "id": "note-batching",
+      "type": "text",
+      "kind": "note",
+      "category": "note",
+      "title": "Result: 2 batches per table",
+      "text": "Two risks give two flushes, so each table receives 2 insert batches instead of one INSERT per row.\n\nRequires `hibernate.jdbc.batch_size=50`, `order_inserts=true`, `order_updates=true`, and SEQUENCE ids (IDENTITY disables batching).",
+      "x": 580, "y": 1410, "width": 540, "height": 140
+    }
+  ],
+  "edges": [
+    { "id": "e-start-input", "fromNode": "start", "fromSide": "bottom", "toNode": "input", "toSide": "top" },
+    { "id": "e-input-ctrl", "fromNode": "input", "fromSide": "bottom", "toNode": "controller", "toSide": "top", "label": "POST /risks/save" },
+    { "id": "e-ctrl-svc", "fromNode": "controller", "fromSide": "bottom", "toNode": "service", "toSide": "top", "label": "delegates" },
+    { "id": "e-svc-record", "fromNode": "service", "fromSide": "bottom", "toNode": "ent-record", "toSide": "top" },
+    { "id": "e-svc-cells", "fromNode": "service", "fromSide": "bottom", "toNode": "ent-cells", "toSide": "top" },
+    { "id": "e-svc-tags", "fromNode": "service", "fromSide": "bottom", "toNode": "ent-tags", "toSide": "top" },
+    { "id": "e-svc-actions", "fromNode": "service", "fromSide": "bottom", "toNode": "ent-actions", "toSide": "top" },
+    { "id": "e-record-flush", "fromNode": "ent-record", "toNode": "flush" },
+    { "id": "e-cells-flush", "fromNode": "ent-cells", "toNode": "flush" },
+    { "id": "e-tags-flush", "fromNode": "ent-tags", "toNode": "flush" },
+    { "id": "e-actions-flush", "fromNode": "ent-actions", "toNode": "flush" },
+    { "id": "e-flush-record", "fromNode": "flush", "toNode": "tbl-record", "toSide": "top", "label": "x2 batches" },
+    { "id": "e-flush-cells", "fromNode": "flush", "toNode": "tbl-cells", "toSide": "top", "label": "x2 batches" },
+    { "id": "e-flush-tags", "fromNode": "flush", "toNode": "tbl-tags", "toSide": "top", "label": "x2 batches" },
+    { "id": "e-flush-actions", "fromNode": "flush", "toNode": "tbl-actions", "toSide": "top", "label": "x2 batches" },
+    { "id": "e-db-deletes", "fromNode": "db-group", "fromSide": "bottom", "toNode": "note-deletes", "toSide": "top", "label": "after loop", "style": "dashed" },
+    { "id": "e-db-batching", "fromNode": "db-group", "fromSide": "bottom", "toNode": "note-batching", "toSide": "top", "style": "dashed" }
+  ],
+  "steps": [
+    { "id": "s1", "title": "User clicks Save", "description": "The whole risk register is submitted in one request.", "nodeIds": ["start"] },
+    { "id": "s2", "title": "Form input", "description": "Each row is a risk with cell values, **tags** and **actions**.", "nodeIds": ["input"], "edgeIds": ["e-start-input"] },
+    { "id": "s3", "title": "Controller", "description": "`saveRiskAssessment()` only validates and delegates.", "nodeIds": ["controller"], "edgeIds": ["e-input-ctrl"] },
+    { "id": "s4", "title": "Service transaction", "description": "One transaction. Existing data is read **before** the loop, never inside it.", "nodeIds": ["service"], "edgeIds": ["e-ctrl-svc"] },
+    { "id": "s5", "title": "Entities per risk", "description": "For each risk the service builds four kinds of entity and calls `saveAll()` per collection.", "nodeIds": ["ent-record", "ent-cells", "ent-tags", "ent-actions"], "edgeIds": ["e-svc-record", "e-svc-cells", "e-svc-tags", "e-svc-actions"] },
+    { "id": "s6", "title": "Flush once per risk", "description": "Queued inserts are sent together when the record is flushed.", "nodeIds": ["flush"], "edgeIds": ["e-record-flush", "e-cells-flush", "e-tags-flush", "e-actions-flush"] },
+    { "id": "s7", "title": "Batched writes", "description": "Each flush becomes one JDBC batch per table: two risks, two batches.", "nodeIds": ["db-group", "tbl-record", "tbl-cells", "tbl-tags", "tbl-actions"], "edgeIds": ["e-flush-record", "e-flush-cells", "e-flush-tags", "e-flush-actions"] },
+    { "id": "s8", "title": "Deletes after the loop", "description": "Removed children are deleted in one statement per table.", "nodeIds": ["note-deletes"], "edgeIds": ["e-db-deletes"] },
+    { "id": "s9", "title": "Result and config", "description": "Batching only works with the right Hibernate settings and SEQUENCE ids.", "nodeIds": ["note-batching"], "edgeIds": ["e-db-batching"] }
+  ]
+}

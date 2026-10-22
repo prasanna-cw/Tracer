@@ -1,0 +1,30 @@
+{
+  "name": "codemap-studio",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20.19"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @codemap/app --",
+    "build": "npm run build --workspaces --if-present",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint . --max-warnings 0",
+    "analyze": "npm run analyze -w @codemap/cli --",
+    "export:canvas": "npm run export:canvas -w @codemap/cli --",
+    "import:canvas": "npm run import:canvas -w @codemap/cli --"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^20.19.0",
+    "eslint": "^10.13.0",
+    "playwright-core": "^1.64.1",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.72.0",
+    "vitest": "^3.2.4"
+  }
+}
