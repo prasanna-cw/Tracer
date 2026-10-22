@@ -11,3 +11,5 @@ export { chooseSides, type Rect } from "./layout/sides";
 export { groupMembers, moveGroup } from "./layout/groups";
 export * from "./graph/types";
 export { findCycles, cycleEdgeKeys, edgeKey, localGraph, isTestFile, topFolder } from "./graph/algorithms";
+export * from "./protocol/messages";
+export { diagramToText, textToDiagram, isCanvasFile } from "./documents";
