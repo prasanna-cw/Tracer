@@ -103,7 +103,7 @@ Then, in VS Code:
 
 The same diagrams from a terminal: `npm run flow -- --root <repo> --file <file> [--line N [--end M] | --trace] --out x.diagram.json`. Speed on a big workspace: `npm run bench -- --files 6000` (see `docs/DECISIONS.md` D34).
 
-To uninstall: `code --uninstall-extension PrasannaMurugan.tracer`.
+To uninstall: `code --uninstall-extension PrasannaMurugan.tracer-code-flow`.
 
 Develop: open this repo in VS Code and press **F5** ("Run Tracer extension": builds, then opens `samples/demo-repo` in an Extension Development Host). Integration tests in a real VS Code: `npm run test:vscode` (downloads VS Code, about 350 MB, on first run).
 
