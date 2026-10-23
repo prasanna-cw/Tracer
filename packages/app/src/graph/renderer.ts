@@ -104,12 +104,24 @@ export function drawGraph(ctx: CanvasRenderingContext2D, width: number, height: 
   ctx.lineWidth = 3;
   ctx.lineJoin = "round";
   const all = t.k >= s.labelZoom;
+  // Important labels (selected, found, highlighted, hubs) are placed first; any later label that would
+  // overlap one already drawn is skipped until you zoom in, so text never piles up.
+  const placed: { x0: number; x1: number; y0: number; y1: number }[] = [];
+  const shown: { n: SimNode; sx: number; sy: number; rank: number }[] = [];
   for (const n of s.nodes) {
-    const special = n.id === s.selectedId || (s.focus !== null && lit(n.id)) || s.matches.has(n.id) || (!s.focus && s.hubs.has(n.id));
-    if (!all && !special) continue;
+    const rank = n.id === s.selectedId ? 0 : s.matches.has(n.id) ? 1 : s.focus !== null && lit(n.id) ? 2 : !s.focus && s.hubs.has(n.id) ? 3 : 4;
+    if (!all && rank === 4) continue;
     const sx = t.applyX(n.x ?? 0);
     const sy = t.applyY(n.y ?? 0) + n.r * t.k + 3;
     if (sx < -100 || sx > width + 100 || sy < -20 || sy > height + 20) continue;
+    shown.push({ n, sx, sy, rank });
+  }
+  shown.sort((a, b) => a.rank - b.rank);
+  for (const { n, sx, sy } of shown) {
+    const half = ctx.measureText(n.label).width / 2 + 2;
+    const box = { x0: sx - half, x1: sx + half, y0: sy - 1, y1: sy + 13 };
+    if (placed.some((p) => box.x0 < p.x1 && box.x1 > p.x0 && box.y0 < p.y1 && box.y1 > p.y0)) continue;
+    placed.push(box);
     ctx.globalAlpha = lit(n.id) ? 1 : DIM * 2;
     ctx.strokeText(n.label, sx, sy); // halo in the background color keeps labels readable over edges
     ctx.fillText(n.label, sx, sy);
