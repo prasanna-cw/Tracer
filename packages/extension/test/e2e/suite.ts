@@ -10,7 +10,7 @@ import type { CodeGraphSummary } from "@tracer/core";
 type Api = { statusOf(uri: string): { state: string; nodeCount?: number; detail?: string } | undefined };
 
 const repo = resolve(__dirname, "../../../..");
-const EXTENSION_ID = "prasanna-murugan.tracer";
+const EXTENSION_ID = "PrasannaMurugan.tracer";
 
 async function waitFor<T>(what: string, get: () => T | undefined, timeoutMs = 30_000): Promise<T> {
   const until = Date.now() + timeoutMs;

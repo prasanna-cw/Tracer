@@ -177,7 +177,7 @@ Each entry: what, why, alternative considered.
 
 ## D29. Tracer: name, look, Light/Dark
 
-- **Name:** the product is **Tracer** (extension id `prasanna-murugan.tracer`, commands `tracer.*`, setting `tracer.theme`, editor `tracer.flowEditor`). Internal packages are `@tracer/*`. The JSON Canvas stash key is now `tracer`; files written with the old `codemap` key still import.
+- **Name:** the product is **Tracer** (extension id `PrasannaMurugan.tracer`, commands `tracer.*`, setting `tracer.theme`, editor `tracer.flowEditor`). Internal packages are `@tracer/*`. The JSON Canvas stash key is now `tracer`; files written with the old `codemap` key still import.
 - **Themes:** Light and Dark (Tracer palettes) plus **native**: with `tracer.theme: auto` in VS Code, the chrome uses VS Code's own theme variables (`--vscode-*`, `themes/native.css`), so it matches any theme including high contrast; category and graph colors follow VS Code's light/dark kind. In the browser the default follows the OS preference.
 - **UI:** compact 40px toolbar of codicon buttons (VS Code's icon font, bundled, no network) with tooltips; Flow | Graph segmented switch; Snap/Minimap/exports in a **⋯** menu; walkthrough as a floating card with a progress strip.
 - **Graph defaults:** search, three filter chips and zoom buttons are all that is shown; Folders and **Layout settings** (the force sliders) are collapsed. The ~12 most-connected files are always labelled so the overview names what matters; labels have a background halo.

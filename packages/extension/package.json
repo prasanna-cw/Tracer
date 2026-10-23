@@ -3,7 +3,7 @@
   "displayName": "Tracer",
   "description": "Trace your code: flow diagrams of files and functions, and a map and graph of the whole workspace. Runs locally: no network, no telemetry.",
   "version": "0.0.1",
-  "publisher": "prasanna-murugan",
+  "publisher": "PrasannaMurugan",
   "license": "MIT",
   "repository": { "type": "git", "url": "https://github.com/prasanna-cw/Tracer.git" },
   "bugs": { "url": "https://github.com/prasanna-cw/Tracer/issues" },
