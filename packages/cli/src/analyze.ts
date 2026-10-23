@@ -2,7 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { pathToFileURL } from "node:url";
-import { analyzeRepo, toPosix, type AnalyzeResult } from "@codemap/core/analyzer";
+import { analyzeRepo, toPosix, type AnalyzeResult } from "@tracer/core/analyzer";
 import { nodeFileSystem } from "./nodeFileSystem";
 
 const USAGE = "Usage: npm run analyze -- --root <path-to-repo> --out <graph.json>";

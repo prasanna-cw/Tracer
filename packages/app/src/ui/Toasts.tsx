@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { Icon, IconButton } from "./Icon";
 
 type Toast = { id: number; message: string };
 let nextId = 1;
@@ -22,10 +23,9 @@ export function Toasts({ toasts, dismiss }: { toasts: Toast[]; dismiss: (id: num
     <div className="toasts" role="status" aria-live="polite">
       {toasts.map((t) => (
         <div key={t.id} className="toast">
-          <span>{t.message}</span>
-          <button type="button" className="icon-btn" aria-label="Dismiss" onClick={() => dismiss(t.id)}>
-            ×
-          </button>
+          <Icon name="info" />
+          <span className="msg">{t.message}</span>
+          <IconButton icon="close" label="Dismiss" onClick={() => dismiss(t.id)} />
         </div>
       ))}
     </div>

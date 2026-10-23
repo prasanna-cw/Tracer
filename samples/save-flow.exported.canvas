@@ -17,7 +17,7 @@
 			"width": 280,
 			"height": 60,
 			"text": "## User clicks Save",
-			"codemap": {
+			"tracer": {
 				"kind": "start",
 				"title": "User clicks Save",
 				"text": null,
@@ -33,7 +33,7 @@
 			"height": 170,
 			"text": "## Risk register (form input)\n\n- *Risk # | Description | Probability | Impact | Tags | Actions*\n- R-101 | Steel supplier delivers late | High | Major | supply, vendor | Expedite PO; Qualify second supplier\n- R-102 | Lead engineer leaves mid-project | Medium | Moderate | people | Cross-train; Document handover",
 			"color": "3",
-			"codemap": {
+			"tracer": {
 				"kind": "table",
 				"title": "Risk register (form input)",
 				"category": "data",
@@ -63,7 +63,7 @@
 			"height": 110,
 			"text": "## Controller\n\n*RiskController.saveRiskAssessment()*\n\nThin: validates the request DTO and calls the service. No persistence logic.",
 			"color": "6",
-			"codemap": {
+			"tracer": {
 				"kind": "layer",
 				"title": "Controller",
 				"subtitle": "RiskController.saveRiskAssessment()",
@@ -86,7 +86,7 @@
 			"height": 180,
 			"text": "## Service layer\n\n*RiskService.save() · @Transactional*\n\n- One transaction for the whole save\n- Load existing records, tags and actions once, before the loop\n- Per risk: saveAll() for each child collection\n- One flush per risk record",
 			"color": "4",
-			"codemap": {
+			"tracer": {
 				"kind": "layer",
 				"title": "Service layer",
 				"subtitle": "RiskService.save() · @Transactional",
@@ -123,7 +123,7 @@
 			"height": 110,
 			"text": "## RiskRecord\n\nOne row per risk; parent of every child row.",
 			"color": "2",
-			"codemap": {
+			"tracer": {
 				"kind": "entity",
 				"title": "RiskRecord",
 				"category": "entity",
@@ -141,7 +141,7 @@
 			"height": 110,
 			"text": "## RiskCellValue\n\nOne row per column value (Description, Probability, Impact).",
 			"color": "3",
-			"codemap": {
+			"tracer": {
 				"kind": "entity",
 				"title": "RiskCellValue",
 				"category": "data",
@@ -159,7 +159,7 @@
 			"height": 110,
 			"text": "## RiskTag\n\nTag links; replaced as a set on every save.",
 			"color": "4",
-			"codemap": {
+			"tracer": {
 				"kind": "entity",
 				"title": "RiskTag",
 				"category": "service",
@@ -177,7 +177,7 @@
 			"height": 110,
 			"text": "## RiskAction\n\nOrdered mitigation actions.",
 			"color": "1",
-			"codemap": {
+			"tracer": {
 				"kind": "entity",
 				"title": "RiskAction",
 				"category": "warning",
@@ -195,7 +195,7 @@
 			"height": 100,
 			"text": "## Flush once per risk\n\n`entityManager.flush()` after all of a record's children are queued, so Hibernate sends one JDBC batch per table.",
 			"color": "1",
-			"codemap": {
+			"tracer": {
 				"kind": "note",
 				"title": "Flush once per risk",
 				"category": "warning",
@@ -213,7 +213,7 @@
 			"height": 240,
 			"text": "## risk_record\n\n- *id | project_id | risk_no*\n- 1 | 7 | R-101\n- 2 | 7 | R-102",
 			"color": "5",
-			"codemap": {
+			"tracer": {
 				"kind": "table",
 				"title": "risk_record",
 				"category": "db",
@@ -243,7 +243,7 @@
 			"height": 240,
 			"text": "## risk_cell_value\n\n- *record_id | column | value*\n- 1 | description | Steel supplier delivers late\n- 1 | probability | High\n- 1 | impact | Major\n- 2 | description | Lead engineer leaves mid-project\n- 2 | probability | Medium\n- 2 | impact | Moderate",
 			"color": "5",
-			"codemap": {
+			"tracer": {
 				"kind": "table",
 				"title": "risk_cell_value",
 				"category": "db",
@@ -285,7 +285,7 @@
 			"height": 240,
 			"text": "## risk_tag\n\n- *record_id | tag*\n- 1 | supply\n- 1 | vendor\n- 2 | people",
 			"color": "5",
-			"codemap": {
+			"tracer": {
 				"kind": "table",
 				"title": "risk_tag",
 				"category": "db",
@@ -318,7 +318,7 @@
 			"height": 240,
 			"text": "## risk_action\n\n- *record_id | seq | text*\n- 1 | 1 | Expedite PO\n- 1 | 2 | Qualify second supplier\n- 2 | 1 | Cross-train\n- 2 | 2 | Document handover",
 			"color": "5",
-			"codemap": {
+			"tracer": {
 				"kind": "table",
 				"title": "risk_action",
 				"category": "db",
@@ -353,7 +353,7 @@
 			"width": 540,
 			"height": 140,
 			"text": "## After the loop: deletes\n\nTags and actions removed in the form are deleted once, after all records, with a single `DELETE ... WHERE id IN (...)` per table.",
-			"codemap": {
+			"tracer": {
 				"kind": "note",
 				"title": "After the loop: deletes",
 				"category": "note",
@@ -369,7 +369,7 @@
 			"width": 540,
 			"height": 140,
 			"text": "## Result: 2 batches per table\n\nTwo risks give two flushes, so each table receives 2 insert batches instead of one INSERT per row.\n\nRequires `hibernate.jdbc.batch_size=50`, `order_inserts=true`, `order_updates=true`, and SEQUENCE ids (IDENTITY disables batching).",
-			"codemap": {
+			"tracer": {
 				"kind": "note",
 				"title": "Result: 2 batches per table",
 				"category": "note",
@@ -497,7 +497,7 @@
 			"toNode": "note-deletes",
 			"toSide": "top",
 			"label": "after loop",
-			"codemap": {
+			"tracer": {
 				"style": "dashed"
 			}
 		},
@@ -507,12 +507,12 @@
 			"fromSide": "bottom",
 			"toNode": "note-batching",
 			"toSide": "top",
-			"codemap": {
+			"tracer": {
 				"style": "dashed"
 			}
 		}
 	],
-	"codemap": {
+	"tracer": {
 		"version": 1,
 		"title": "Saving a risk assessment",
 		"steps": [

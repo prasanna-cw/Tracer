@@ -1,4 +1,4 @@
-import type { Diagram, DiagramNode } from "@codemap/core";
+import type { Diagram, DiagramNode } from "@tracer/core";
 
 /** Undoable diagram state. Every committed change is one undo step (a whole drag, a whole text edit). */
 export type History = {

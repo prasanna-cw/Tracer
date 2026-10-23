@@ -1,6 +1,6 @@
 import { Worker } from "node:worker_threads";
 import * as vscode from "vscode";
-import type { CodeGraph, CodeGraphSummary } from "@codemap/core";
+import type { CodeGraph, CodeGraphSummary } from "@tracer/core";
 import { serve } from "./rpc";
 import { currentTheme, onThemeChange } from "./theme";
 import { webviewHtml, webviewOptions } from "./webview";
@@ -29,32 +29,32 @@ function analyze(extensionUri: vscode.Uri, root: string, token: vscode.Cancellat
 }
 
 /**
- * "CodeMap: Open Graph View": analyzes the first workspace folder in a worker thread (with progress),
+ * "Tracer: Open Graph": analyzes the first workspace folder in a worker thread (with progress),
  * reports warnings, and shows the graph. Resolves to the summary (used by tests), or undefined if there
  * was nothing to analyze or the user cancelled.
  */
 export async function openGraphView(context: vscode.ExtensionContext, output: vscode.OutputChannel): Promise<CodeGraphSummary | undefined> {
   const folder = vscode.workspace.workspaceFolders?.[0];
   if (!folder) {
-    void vscode.window.showErrorMessage("CodeMap: open a folder first. The graph is built from the first workspace folder.");
+    void vscode.window.showErrorMessage("Tracer: open a folder first. The graph is built from the first workspace folder.");
     return undefined;
   }
   if (folder.uri.scheme !== "file") {
-    void vscode.window.showErrorMessage("CodeMap: the graph view needs a folder on the local disk.");
+    void vscode.window.showErrorMessage("Tracer: the graph view needs a folder on the local disk.");
     return undefined;
   }
 
   let result: { graph: CodeGraph; ms: number };
   try {
     result = await vscode.window.withProgress(
-      { location: vscode.ProgressLocation.Notification, title: `CodeMap: analyzing ${folder.name}…`, cancellable: true },
-      // Forward slashes, as the analyzer expects. (Not toPosix from @codemap/core/analyzer: importing that
+      { location: vscode.ProgressLocation.Notification, title: `Tracer: analyzing ${folder.name}…`, cancellable: true },
+      // Forward slashes, as the analyzer expects. (Not toPosix from @tracer/core/analyzer: importing that
       // entry would pull the TypeScript compiler into extension.js; it belongs in the worker bundle only.)
       (_progress, token) => analyze(context.extensionUri, folder.uri.fsPath.split("\\").join("/"), token),
     );
   } catch (e) {
     if (e instanceof vscode.CancellationError) return undefined;
-    void vscode.window.showErrorMessage(`CodeMap: analysis failed: ${e instanceof Error ? e.message : String(e)}`);
+    void vscode.window.showErrorMessage(`Tracer: analysis failed: ${e instanceof Error ? e.message : String(e)}`);
     return undefined;
   }
 
@@ -68,11 +68,11 @@ export async function openGraphView(context: vscode.ExtensionContext, output: vs
   for (const w of s.warnings) output.appendLine(`  warning: ${w}`);
   if (s.warnings.length) {
     void vscode.window
-      .showWarningMessage(`CodeMap: ${s.warnings.length} warning(s) while analyzing ${folder.name}.`, "Show details")
+      .showWarningMessage(`Tracer: ${s.warnings.length} warning(s) while analyzing ${folder.name}.`, "Show details")
       .then((choice) => choice && output.show(true));
   }
 
-  const panel = vscode.window.createWebviewPanel("codemap.graph", `Graph: ${folder.name}`, vscode.ViewColumn.Active, {
+  const panel = vscode.window.createWebviewPanel("tracer.graph", `Graph: ${folder.name}`, vscode.ViewColumn.Active, {
     ...webviewOptions(context.extensionUri),
     retainContextWhenHidden: true, // keeps the layout when the tab is in the background
   });
@@ -84,7 +84,7 @@ export async function openGraphView(context: vscode.ExtensionContext, output: vs
   const server = serve(
     panel.webview,
     {
-      init: async () => ({ mode: "graph", theme: currentTheme() }),
+      init: async () => ({ mode: "graph", ...currentTheme() }),
       loadGraph: async () => graph,
       openSource: async ({ path, line }) => openSource([folder.uri], path, line),
       exportFile: async (p) => exportFile(p, folder.uri),
@@ -97,7 +97,7 @@ export async function openGraphView(context: vscode.ExtensionContext, output: vs
     },
     (m) => output.appendLine(`[graph] ${m}`),
   );
-  const theme = onThemeChange((t) => server.emit({ kind: "event", type: "theme", theme: t }));
+  const theme = onThemeChange((t) => server.emit({ kind: "event", type: "theme", ...t }));
   panel.onDidDispose(() => {
     server.dispose();
     theme.dispose();

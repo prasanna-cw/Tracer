@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import type { Params } from "@codemap/core";
+import type { Params } from "@tracer/core";
 
 const DIAGRAM_GLOB = "**/*.{diagram.json,canvas}";
 const EXCLUDE = "**/{node_modules,dist,.git}/**";
@@ -19,7 +19,7 @@ export async function listDiagrams(): Promise<{ id: string; title: string }[]> {
 export async function openSource(bases: readonly vscode.Uri[], path: string, line?: number): Promise<null> {
   const segments = path.split(/[\\/]/).filter(Boolean);
   if (/^([a-z]:|[\\/])/i.test(path) || segments.includes("..")) {
-    void vscode.window.showWarningMessage(`CodeMap: refusing to open "${path}" (only paths inside the workspace are allowed).`);
+    void vscode.window.showWarningMessage(`Tracer: refusing to open "${path}" (only paths inside the workspace are allowed).`);
     return null;
   }
   for (const base of bases) {
@@ -33,7 +33,7 @@ export async function openSource(bases: readonly vscode.Uri[], path: string, lin
     await vscode.window.showTextDocument(uri, { preview: true, selection: position && new vscode.Range(position, position) });
     return null;
   }
-  void vscode.window.showWarningMessage(`CodeMap: "${path}" was not found in the workspace.`);
+  void vscode.window.showWarningMessage(`Tracer: "${path}" was not found in the workspace.`);
   return null;
 }
 

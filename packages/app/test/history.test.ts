@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { moveGroup, type Diagram } from "@codemap/core";
+import { moveGroup, type Diagram } from "@tracer/core";
 import { historyReducer, initHistory } from "../src/canvas/history";
 
 const d: Diagram = {

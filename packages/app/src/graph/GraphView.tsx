@@ -3,8 +3,9 @@ import { drag } from "d3-drag";
 import { quadtree, type Quadtree } from "d3-quadtree";
 import { pointer, select } from "d3-selection";
 import { zoom, zoomIdentity, type ZoomBehavior, type ZoomTransform } from "d3-zoom";
-import { cycleEdgeKeys, edgeKey, findCycles, type CodeGraph } from "@codemap/core";
+import { cycleEdgeKeys, edgeKey, findCycles, type CodeGraph } from "@tracer/core";
 import type { HostAdapter } from "../host/HostAdapter";
+import { Icon, IconButton } from "../ui/Icon";
 import { groupResolver, neighborsOf, searchMatches, visibleNodeIds } from "./graphModel";
 import type { FromLayout, ToLayout } from "./layoutEngine";
 // Inlined as a blob: worker. A webview cannot start a Worker from its (cross-origin) resource URL.
@@ -14,6 +15,7 @@ import { drawGraph, type GraphColors, type Scene, type SimLink, type SimNode } f
 type Settings = { center: number; repel: number; linkStrength: number; linkDistance: number; nodeSize: number; labelZoom: number };
 const DEFAULTS: Settings = { center: 0.06, repel: 140, linkStrength: 0.5, linkDistance: 50, nodeSize: 1, labelZoom: 1.1 };
 const PALETTE_SIZE = 6;
+const HUB_LABELS = 12; // always-labelled most-connected files
 
 /** Main-thread side of the layout: what is drawn and hit-tested. The physics runs in layout.worker.ts. */
 type Engine = {
@@ -26,6 +28,7 @@ type Engine = {
   tree: Quadtree<SimNode> | null;
   maxR: number;
   fitted: boolean;
+  placed: boolean; // positions for the current node set have arrived (before that, nothing is drawn)
 };
 
 const reducedMotion = (): boolean => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -91,6 +94,11 @@ function GraphExplorer({ graph, theme, onOpenSource }: { graph: CodeGraph; theme
     () => [...new Set(graph.nodes.map((n) => groupOf(n.path)))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
     [graph, groupOf],
   );
+  const groupCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const n of graph.nodes) m.set(groupOf(n.path), (m.get(groupOf(n.path)) ?? 0) + 1);
+    return m;
+  }, [graph, groupOf]);
   const groupIndex = useMemo(() => new Map(groups.map((g, i) => [g, i % PALETTE_SIZE])), [groups]);
   const cycles = useMemo(() => findCycles(graph.nodes.map((n) => n.id), graph.edges), [graph]);
   const cycleKeys = useMemo(() => cycleEdgeKeys(cycles, graph.edges), [cycles, graph]);
@@ -115,6 +123,15 @@ function GraphExplorer({ graph, theme, onOpenSource }: { graph: CodeGraph; theme
   const matchList = useMemo(() => searchMatches(graph.nodes, query), [graph, query]);
   const matches = useMemo(() => new Set(matchList.filter((id) => visible.has(id))), [matchList, visible]);
   const visibleEdges = useMemo(() => graph.edges.filter((e) => visible.has(e.source) && visible.has(e.target)), [graph, visible]);
+  const hubs = useMemo(() => {
+    const degree = new Map<string, number>();
+    for (const e of visibleEdges) {
+      degree.set(e.source, (degree.get(e.source) ?? 0) + 1);
+      degree.set(e.target, (degree.get(e.target) ?? 0) + 1);
+    }
+    const top = [...degree].sort((a, b) => b[1] - a[1]).slice(0, HUB_LABELS);
+    return new Set(top.filter(([, d]) => d >= 3).map(([id]) => id));
+  }, [visibleEdges]);
 
   // ---- imperative engine (refs: never re-render React per frame) ------------------------------------
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -128,6 +145,7 @@ function GraphExplorer({ graph, theme, onOpenSource }: { graph: CodeGraph; theme
     matches: new Set(),
     cycleKeys: null,
     labelZoom: DEFAULTS.labelZoom,
+    hubs: new Set(),
     adjacency: new Map(),
   });
   const colors = useRef<{ theme: string | undefined; value: GraphColors } | null>(null);
@@ -147,12 +165,12 @@ function GraphExplorer({ graph, theme, onOpenSource }: { graph: CodeGraph; theme
     colors.current = { theme, value: themeColors };
     const s = scene.current;
     const focusId = hover.current ?? s.selectedId;
-    const nodes = e.nodes;
+    const nodes = e.placed ? e.nodes : []; // no pile of dots at the origin before the first layout frame
     for (const n of nodes) n.color = themeColors.palette[n.colorIndex] ?? themeColors.text;
     drawGraph(ctx, size.current.w, size.current.h, size.current.dpr, transform.current, {
       ...s,
       nodes,
-      links: e.links,
+      links: e.placed ? e.links : [],
       colors: themeColors,
       focus: focusId ? { id: focusId, neighbors: s.adjacency.get(focusId) ?? new Set() } : null,
     });
@@ -189,22 +207,24 @@ function GraphExplorer({ graph, theme, onOpenSource }: { graph: CodeGraph; theme
       graph.nodes.map((n) => [n.id, { id: n.id, node: n, r: 4, colorIndex: 0, color: "", label: label(n.path) }]),
     );
     const worker = new LayoutWorker();
-    const e: Engine = { worker, gen: 0, byId, nodes: [], index: new Map(), links: [], tree: null, maxR: 0, fitted: false };
+    const e: Engine = { worker, gen: 0, byId, nodes: [], index: new Map(), links: [], tree: null, maxR: 0, fitted: false, placed: false };
     worker.onmessage = (ev: MessageEvent<FromLayout>) => {
-      const { gen, positions, settled } = ev.data;
+      const { gen, positions } = ev.data;
       if (gen !== e.gen) return; // computed for a node set we have since replaced
       e.nodes.forEach((n, i) => {
         n.x = positions[2 * i];
         n.y = positions[2 * i + 1];
       });
+      e.placed = true;
       e.tree = null; // hit-test index is rebuilt lazily on the next pointer event
-      requestDraw();
-      if (settled && !e.fitted) {
+      // The worker warms the layout up before its first frame, so it is already close to final: frame it now.
+      if (!e.fitted) {
         e.fitted = true;
         fit();
       }
+      requestDraw();
     };
-    worker.onerror = (ev) => console.error("[codemap] layout worker failed:", ev.message);
+    worker.onerror = (ev) => console.error("[tracer] layout worker failed:", ev.message);
     engine.current = e;
     return () => {
       worker.terminate();
@@ -230,6 +250,7 @@ function GraphExplorer({ graph, theme, onOpenSource }: { graph: CodeGraph; theme
     }
     e.maxR = Math.max(0, ...nodes.map((n) => n.r));
     e.tree = null;
+    if (nodes.some((n) => n.x === undefined)) e.placed = false; // new files: wait for the warmed-up layout
     e.nodes = nodes;
     e.index = new Map(nodes.map((n, i) => [n.id, i]));
     e.links = visibleEdges.flatMap((x) => {
@@ -258,10 +279,11 @@ function GraphExplorer({ graph, theme, onOpenSource }: { graph: CodeGraph; theme
       matches,
       cycleKeys: showCycles ? cycleKeys : null,
       labelZoom: settings.labelZoom,
+      hubs,
       adjacency,
     };
     requestDraw();
-  }, [selectedId, matches, showCycles, cycleKeys, settings.labelZoom, adjacency, requestDraw]);
+  }, [selectedId, matches, showCycles, cycleKeys, settings.labelZoom, hubs, adjacency, requestDraw]);
 
   // Canvas: size, zoom/pan, node drag, hover, click, double-click.
   useEffect(() => {
@@ -271,7 +293,7 @@ function GraphExplorer({ graph, theme, onOpenSource }: { graph: CodeGraph; theme
 
     const resize = () => {
       const r = box.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2); // beyond 2x the extra pixels cost frames, not sharpness
       size.current = { w: r.width, h: r.height, dpr };
       canvas.width = Math.round(r.width * dpr);
       canvas.height = Math.round(r.height * dpr);
@@ -325,13 +347,20 @@ function GraphExplorer({ graph, theme, onOpenSource }: { graph: CodeGraph; theme
     sel.call(nodeDrag).call(z).on("dblclick.zoom", null);
     sel.call(z.transform, zoomIdentity.translate(size.current.w / 2, size.current.h / 2));
 
+    // Hover hit tests run at most once per frame, however fast the pointer events arrive.
+    let lastMove: PointerEvent | null = null;
+    let moveFrame = 0;
     const onMove = (ev: PointerEvent) => {
-      const id = hit(ev)?.id ?? null;
-      if (id !== hover.current) {
-        hover.current = id;
-        canvas.style.cursor = id ? "pointer" : "";
-        requestDraw();
-      }
+      lastMove = ev;
+      moveFrame ||= requestAnimationFrame(() => {
+        moveFrame = 0;
+        const id = lastMove ? (hit(lastMove)?.id ?? null) : null;
+        if (id !== hover.current) {
+          hover.current = id;
+          canvas.style.cursor = id ? "pointer" : "";
+          requestDraw();
+        }
+      });
     };
     const onLeave = () => {
       hover.current = null;
@@ -350,6 +379,7 @@ function GraphExplorer({ graph, theme, onOpenSource }: { graph: CodeGraph; theme
       ro.disconnect();
       sel.on(".zoom", null).on(".drag", null);
       canvas.removeEventListener("pointermove", onMove);
+      cancelAnimationFrame(moveFrame);
       canvas.removeEventListener("pointerleave", onLeave);
       canvas.removeEventListener("click", onClick);
       canvas.removeEventListener("dblclick", onDblClick);
@@ -380,6 +410,18 @@ function GraphExplorer({ graph, theme, onOpenSource }: { graph: CodeGraph; theme
   const set = <K extends keyof Settings>(k: K) => (ev: React.ChangeEvent<HTMLInputElement>) =>
     setSettings((prev) => ({ ...prev, [k]: Number(ev.target.value) }));
 
+  const zoomBy = (k: number) => {
+    const canvas = canvasRef.current;
+    if (canvas && zoomBehavior.current) select(canvas).call(zoomBehavior.current.scaleBy, k);
+  };
+  const toggleGroup = (g: string, shown: boolean) =>
+    setHiddenGroups((prev) => {
+      const next = new Set(prev);
+      if (shown) next.delete(g);
+      else next.add(g);
+      return next;
+    });
+
   return (
     <div className="graph-view">
       <div className="graph-canvas">
@@ -391,104 +433,112 @@ function GraphExplorer({ graph, theme, onOpenSource }: { graph: CodeGraph; theme
       </div>
 
       <aside className="graph-controls" aria-label="Graph controls">
-        <div className="graph-stats">
+        <div className="graph-stats" title={`${s.unresolvedCount} unresolved · ${s.externalCount} external imports`}>
           <strong>{graph.root}</strong>
           <span>
-            {s.fileCount} files · {s.edgeCount} imports · {s.unresolvedCount} unresolved · {s.cycleCount} cycle
-            {s.cycleCount === 1 ? "" : "s"}
+            {visible.size === graph.nodes.length ? s.fileCount : `${visible.size}/${s.fileCount}`} files · {s.edgeCount} imports
           </span>
-          {visible.size !== graph.nodes.length && <span className="muted">showing {visible.size}</span>}
         </div>
 
-        <label className="field">
-          <span>Search paths</span>
-          <input
-            type="search"
-            value={query}
-            placeholder="e.g. core/ or Button"
-            onChange={(ev) => setQuery(ev.target.value)}
-            onKeyDown={(ev) => {
-              const first = [...matches][0];
-              if (ev.key === "Enter" && first) focusNode(first);
-            }}
-          />
+        <div>
+          <label className="search">
+            <Icon name="search" />
+            <input
+              type="search"
+              value={query}
+              placeholder="Find a file"
+              aria-label="Find a file by path"
+              onChange={(ev) => setQuery(ev.target.value)}
+              onKeyDown={(ev) => {
+                const first = [...matches][0];
+                if (ev.key === "Enter" && first) focusNode(first);
+              }}
+            />
+          </label>
           {query.trim() && (
-            <span className="muted">
-              {matches.size} match{matches.size === 1 ? "" : "es"}
-              {matches.size ? " (Enter: go to first)" : ""}
-            </span>
+            <div className="search-hint" aria-live="polite">
+              {matches.size ? `${matches.size} match${matches.size === 1 ? "" : "es"} · Enter to jump` : "No matches"}
+            </div>
           )}
-        </label>
+        </div>
 
-        <fieldset>
-          <legend>Filters</legend>
-          <label className="check">
-            <input type="checkbox" checked={hideOrphans} onChange={(ev) => setHideOrphans(ev.target.checked)} /> Hide orphans
-          </label>
-          <label className="check">
-            <input type="checkbox" checked={hideTests} onChange={(ev) => setHideTests(ev.target.checked)} /> Hide tests
-          </label>
-          <label className="check">
-            <input type="checkbox" checked={showCycles} onChange={(ev) => setShowCycles(ev.target.checked)} disabled={!cycles.length} />{" "}
-            Highlight cycles ({cycles.length})
-          </label>
-          <div className="folders" role="group" aria-label="Folders">
+        <div className="chip-row" role="group" aria-label="Filters">
+          <button type="button" className="chip-toggle" aria-pressed={hideTests} onClick={() => setHideTests((v) => !v)} title="Hide *.test.*, *.spec.* and __tests__/">
+            <Icon name="beaker" />
+            Hide tests
+          </button>
+          <button type="button" className="chip-toggle" aria-pressed={hideOrphans} onClick={() => setHideOrphans((v) => !v)} title="Hide files with no imports either way">
+            <Icon name="circle-slash" />
+            Hide orphans
+          </button>
+          <button
+            type="button"
+            className="chip-toggle"
+            aria-pressed={showCycles}
+            onClick={() => setShowCycles((v) => !v)}
+            disabled={!cycles.length}
+            title={cycles.length ? "Color the imports that form cycles" : "No import cycles"}
+          >
+            <Icon name="sync" />
+            Cycles {cycles.length}
+          </button>
+        </div>
+
+        {selectedId && (
+          <div className="local-row">
+            <span>Focus on selection</span>
+            <div className="segmented" role="radiogroup" aria-label="Local graph depth">
+              {[0, 1, 2, 3].map((d) => (
+                <button key={d} type="button" role="radio" aria-selected={localDepth === d} aria-checked={localDepth === d} onClick={() => setLocalDepth(d)}>
+                  {d === 0 ? "Off" : d}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <details className="disclosure">
+          <summary>
+            <Icon name="chevron-right" />
+            Folders
+          </summary>
+          <div className="disclosure-body folders" role="group" aria-label="Folders">
             {groups.map((g) => (
-              <label key={g} className="check">
-                <input
-                  type="checkbox"
-                  checked={!hiddenGroups.has(g)}
-                  onChange={(ev) =>
-                    setHiddenGroups((prev) => {
-                      const next = new Set(prev);
-                      if (ev.target.checked) next.delete(g);
-                      else next.add(g);
-                      return next;
-                    })
-                  }
-                />
+              <label key={g} className="folder-row">
+                <input type="checkbox" checked={!hiddenGroups.has(g)} onChange={(ev) => toggleGroup(g, ev.target.checked)} />
                 <span className="swatch" style={{ background: `var(--graph-${(groupIndex.get(g) ?? 0) + 1})` }} />
-                {g}
+                <span>{g}</span>
+                <span className="count">{groupCounts.get(g) ?? 0}</span>
               </label>
             ))}
           </div>
-        </fieldset>
+        </details>
 
-        <fieldset>
-          <legend>Local graph</legend>
-          <label className="range">
-            <span>{localDepth === 0 ? "Off" : `Depth ${localDepth}`}</span>
-            <input
-              type="range"
-              min={0}
-              max={3}
-              step={1}
-              value={localDepth}
-              onChange={(ev) => setLocalDepth(Number(ev.target.value))}
-              aria-label="Local graph depth (0 = off)"
-            />
-          </label>
-          {localDepth > 0 && !selectedId && <span className="muted">Select a file to focus on.</span>}
-        </fieldset>
-
-        <fieldset>
-          <legend>Forces</legend>
-          <Slider label="Center force" min={0} max={0.4} step={0.01} value={settings.center} onChange={set("center")} />
-          <Slider label="Repel force" min={0} max={600} step={10} value={settings.repel} onChange={set("repel")} />
-          <Slider label="Link force" min={0} max={1} step={0.05} value={settings.linkStrength} onChange={set("linkStrength")} />
-          <Slider label="Link distance" min={10} max={300} step={5} value={settings.linkDistance} onChange={set("linkDistance")} />
-          <Slider label="Node size" min={0.5} max={3} step={0.1} value={settings.nodeSize} onChange={set("nodeSize")} />
-          <Slider label="Labels from zoom" min={0.2} max={4} step={0.1} value={settings.labelZoom} onChange={set("labelZoom")} />
-          <div className="row">
-            <button type="button" onClick={fit}>
-              Fit
-            </button>
-            <button type="button" onClick={() => setSettings(DEFAULTS)}>
-              Reset forces
+        <details className="disclosure">
+          <summary>
+            <Icon name="chevron-right" />
+            Layout settings
+          </summary>
+          <div className="disclosure-body">
+            <Slider label="Center force" min={0} max={0.4} step={0.01} value={settings.center} onChange={set("center")} />
+            <Slider label="Repel force" min={0} max={600} step={10} value={settings.repel} onChange={set("repel")} />
+            <Slider label="Link force" min={0} max={1} step={0.05} value={settings.linkStrength} onChange={set("linkStrength")} />
+            <Slider label="Link distance" min={10} max={300} step={5} value={settings.linkDistance} onChange={set("linkDistance")} />
+            <Slider label="Node size" min={0.5} max={3} step={0.1} value={settings.nodeSize} onChange={set("nodeSize")} />
+            <Slider label="Labels from zoom" min={0.2} max={4} step={0.1} value={settings.labelZoom} onChange={set("labelZoom")} />
+            <button type="button" className="btn" onClick={() => setSettings(DEFAULTS)}>
+              <Icon name="discard" />
+              Reset
             </button>
           </div>
-        </fieldset>
+        </details>
       </aside>
+
+      <div className="graph-fab" role="group" aria-label="Zoom">
+        <IconButton icon="zoom-in" label="Zoom in" onClick={() => zoomBy(1.4)} />
+        <IconButton icon="zoom-out" label="Zoom out" onClick={() => zoomBy(1 / 1.4)} />
+        <IconButton icon="screen-full" label="Fit to view" onClick={fit} />
+      </div>
 
       {selected && (
         <GraphSidePanel
@@ -508,7 +558,7 @@ function Slider(p: { label: string; min: number; max: number; step: number; valu
   return (
     <label className="range">
       <span>
-        {p.label} <span className="muted">{p.value}</span>
+        {p.label} <span>{p.value}</span>
       </span>
       <input type="range" min={p.min} max={p.max} step={p.step} value={p.value} onChange={p.onChange} />
     </label>
@@ -530,13 +580,13 @@ function GraphSidePanel(p: {
   const list = (title: string, ids: string[]) => (
     <section>
       <h3>
-        {title} <span className="muted">({ids.length})</span>
+        {title} · {ids.length}
       </h3>
       {ids.length ? (
         <ul className="file-list">
           {ids.map((id) => (
             <li key={id}>
-              <button type="button" className="link-btn mono" onClick={() => p.onGo(id)} title={p.visible.has(id) ? id : `${id} (hidden by filters)`}>
+              <button type="button" className="link-btn" onClick={() => p.onGo(id)} title={p.visible.has(id) ? id : `${id} (hidden by filters)`}>
                 {id}
               </button>
             </li>
@@ -554,22 +604,21 @@ function GraphSidePanel(p: {
           <span className="chip">{node.ext}</span>
           <span className="chip">{node.loc} lines</span>
         </div>
-        <button type="button" className="icon-btn" aria-label="Close details" onClick={p.onClose}>
-          ×
-        </button>
+        <IconButton icon="close" label="Close details" onClick={p.onClose} />
       </header>
       <h2 className="mono">{node.path.slice(node.path.lastIndexOf("/") + 1)}</h2>
-      <p className="mono muted">{node.folder}</p>
-      <button type="button" onClick={() => p.onOpenSource(node.path)}>
+      <p className="mono muted" style={{ margin: "0 0 12px" }}>
+        {node.folder}
+      </p>
+      <button type="button" className="btn" onClick={() => p.onOpenSource(node.path)}>
+        <Icon name="go-to-file" />
         Open source
       </button>
       {list("Imports", imports)}
       {list("Imported by", importedBy)}
       {unresolved.length > 0 && (
         <section>
-          <h3>
-            Unresolved <span className="muted">({unresolved.length})</span>
-          </h3>
+          <h3>Unresolved · {unresolved.length}</h3>
           <ul className="file-list">
             {unresolved.map((u) => (
               <li key={u.specifier} className="mono muted">

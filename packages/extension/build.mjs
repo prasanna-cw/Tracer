@@ -18,4 +18,4 @@ await Promise.all([
   build({ ...node, entryPoints: ["test/e2e/suite.ts"], outfile: "dist/test/suite.js" }),
 ]);
 
-execSync("npm run build:webview -w @codemap/app", { cwd: repo, stdio: "inherit" });
+execSync("npm run build:webview -w @tracer/app", { cwd: repo, stdio: "inherit" });

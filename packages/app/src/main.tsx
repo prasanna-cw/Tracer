@@ -1,8 +1,10 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "@xyflow/react/dist/style.css";
-import "./themes/clean.css";
-import "./themes/obsidian.css";
+import "@vscode/codicons/dist/codicon.css";
+import "./themes/light.css";
+import "./themes/dark.css";
+import "./themes/native.css";
 import "./app.css";
 import { App } from "./App";
 import type { HostAdapter, HostEnv } from "./host/HostAdapter";
@@ -14,11 +16,12 @@ const mount = (
   el: HTMLElement,
   createHost: (notify: (m: string) => void) => HostAdapter,
   env: HostEnv,
-  theme?: "clean" | "obsidian",
+  theme?: "light" | "dark",
+  native?: boolean,
 ) =>
   createRoot(el).render(
     <StrictMode>
-      <App createHost={createHost} env={env} initialTheme={theme} />
+      <App createHost={createHost} env={env} initialTheme={theme} initialNative={native} />
     </StrictMode>,
   );
 
@@ -28,7 +31,7 @@ async function boot(el: HTMLElement): Promise<void> {
     const init = await host.call("init", {});
     const env: HostEnv =
       init.mode === "editor" && init.documentId ? { kind: "editor", documentId: init.documentId } : { kind: "graph" };
-    mount(el, () => host, env, init.theme);
+    mount(el, () => host, env, init.theme, init.native);
     return;
   }
   // Compiled out of the webview build (`--mode webview`), along with the samples WebHost bundles.

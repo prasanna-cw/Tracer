@@ -1,4 +1,5 @@
-import type { WalkthroughStep } from "@codemap/core";
+import type { WalkthroughStep } from "@tracer/core";
+import { IconButton } from "../ui/Icon";
 import { Markdown } from "./Markdown";
 
 type Props = {
@@ -23,20 +24,17 @@ export function WalkthroughBar({ step, index, count, playing, onPrev, onNext, on
         <div className="md">
           <Markdown text={step.description} />
         </div>
+        <div className="wt-progress" aria-hidden="true">
+          {Array.from({ length: count }, (_, i) => (
+            <span key={i} className={i <= index ? "done" : undefined} />
+          ))}
+        </div>
       </div>
       <div className="wt-controls">
-        <button type="button" onClick={onPrev} disabled={index === 0} aria-label="Previous step (Left arrow)">
-          ← Prev
-        </button>
-        <button type="button" onClick={onTogglePlay} aria-pressed={playing}>
-          {playing ? "Pause" : "Play"}
-        </button>
-        <button type="button" onClick={onNext} disabled={index === count - 1} aria-label="Next step (Right arrow)">
-          Next →
-        </button>
-        <button type="button" className="ghost" onClick={onExit} aria-label="Exit walkthrough (Esc)">
-          Exit
-        </button>
+        <IconButton icon="arrow-left" label="Previous step (←)" onClick={onPrev} disabled={index === 0} />
+        <IconButton icon={playing ? "debug-pause" : "play"} label={playing ? "Pause" : "Play"} aria-pressed={playing} onClick={onTogglePlay} />
+        <IconButton icon="arrow-right" label="Next step (→)" onClick={onNext} disabled={index === count - 1} />
+        <IconButton icon="close" label="Exit walkthrough (Esc)" onClick={onExit} />
       </div>
     </section>
   );

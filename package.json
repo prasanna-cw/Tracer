@@ -1,5 +1,5 @@
 {
-  "name": "codemap-studio",
+  "name": "tracer",
   "private": true,
   "type": "module",
   "engines": {
@@ -9,14 +9,14 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run dev -w @codemap/app --",
+    "dev": "npm run dev -w @tracer/app --",
     "build": "npm run build --workspaces --if-present",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint . --max-warnings 0",
-    "analyze": "npm run analyze -w @codemap/cli --",
-    "export:canvas": "npm run export:canvas -w @codemap/cli --",
-    "import:canvas": "npm run import:canvas -w @codemap/cli --",
+    "analyze": "npm run analyze -w @tracer/cli --",
+    "export:canvas": "npm run export:canvas -w @tracer/cli --",
+    "import:canvas": "npm run import:canvas -w @tracer/cli --",
     "analyze:demo": "npm run analyze -- --root samples/demo-repo --out samples/demo-graph.json",
     "package": "npm run package -w packages/extension",
     "test:vscode": "npm run test:vscode -w packages/extension"

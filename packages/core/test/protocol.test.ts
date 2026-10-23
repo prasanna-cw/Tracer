@@ -60,13 +60,13 @@ describe("extension -> webview (responses and events)", () => {
 
   it("builds error responses and events", () => {
     expect(parseToWebview(errorResponse(4, "nope")).ok).toBe(true);
-    expect(parseToWebview(hostEvent({ kind: "event", type: "theme", theme: "obsidian" })).ok).toBe(true);
+    expect(parseToWebview(hostEvent({ kind: "event", type: "theme", theme: "dark", native: false })).ok).toBe(true);
     expect(parseToWebview(hostEvent({ kind: "event", type: "documentInvalid", id: "x", errors: ["bad"] })).ok).toBe(true);
   });
 
   it("refuses to send malformed messages from the extension (bugs fail loudly)", () => {
     expect(() => okResponse(1, "loadDiagram", { nope: true } as unknown as Diagram)).toThrow();
-    expect(() => hostEvent({ kind: "event", type: "theme", theme: "neon" } as never)).toThrow();
+    expect(() => hostEvent({ kind: "event", type: "theme", theme: "neon", native: false } as never)).toThrow();
   });
 
   it("rejects unknown events and malformed responses", () => {

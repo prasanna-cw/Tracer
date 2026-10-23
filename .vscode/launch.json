@@ -3,15 +3,15 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Run CodeMap extension",
+      "name": "Run Tracer extension",
       "type": "extensionHost",
       "request": "launch",
       "args": ["--extensionDevelopmentPath=${workspaceFolder}/packages/extension", "${workspaceFolder}/samples/demo-repo"],
       "outFiles": ["${workspaceFolder}/packages/extension/dist/**/*.js"],
-      "preLaunchTask": "codemap: build extension"
+      "preLaunchTask": "tracer: build extension"
     },
     {
-      "name": "CodeMap integration tests",
+      "name": "Tracer integration tests",
       "type": "extensionHost",
       "request": "launch",
       "args": [
@@ -21,7 +21,7 @@
         "${workspaceFolder}/samples/demo-repo"
       ],
       "outFiles": ["${workspaceFolder}/packages/extension/dist/**/*.js"],
-      "preLaunchTask": "codemap: build extension"
+      "preLaunchTask": "tracer: build extension"
     }
   ]
 }

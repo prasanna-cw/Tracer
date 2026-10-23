@@ -1,4 +1,4 @@
-import { errorResponse, hostEvent, okResponse, parseToHost, type HostEvent, type Method, type Params, type Result } from "@codemap/core";
+import { errorResponse, hostEvent, okResponse, parseToHost, type HostEvent, type Method, type Params, type Result } from "@tracer/core";
 
 /** One async handler per protocol method. Throwing becomes an error response for that request. */
 export type Handlers = { [M in Method]: (params: Params<M>) => Promise<Result<M>> };

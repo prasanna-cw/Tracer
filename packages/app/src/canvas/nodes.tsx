@@ -1,6 +1,6 @@
 import { createContext, memo, useContext, useState, type CSSProperties, type ReactNode } from "react";
 import { Handle, Position, type NodeProps, type NodeTypes } from "@xyflow/react";
-import type { DiagramNode, Side } from "@codemap/core";
+import type { DiagramNode, Side } from "@tracer/core";
 import { Markdown } from "./Markdown";
 import { paletteOf, plainText, type FlowNode } from "./toFlow";
 

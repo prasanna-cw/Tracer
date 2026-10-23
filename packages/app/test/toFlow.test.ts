@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Diagram } from "@codemap/core";
+import type { Diagram } from "@tracer/core";
 import { mergeFlowNodes, paletteOf, toFlowEdges } from "../src/canvas/toFlow";
 
 const d: Diagram = {

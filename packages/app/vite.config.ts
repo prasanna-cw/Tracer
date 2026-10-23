@@ -7,4 +7,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [react()],
   publicDir: mode === "webview" ? false : "public",
   build: { chunkSizeWarningLimit: 700 },
+  // d3-force is only imported by the inline layout worker, which the dev server discovers late; pre-bundling
+  // it up front avoids a full page reload the first time the graph opens.
+  optimizeDeps: { include: ["d3-force"] },
 }));

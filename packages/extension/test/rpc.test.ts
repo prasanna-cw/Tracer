@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseToWebview, type Diagram } from "@codemap/core";
+import { parseToWebview, type Diagram } from "@tracer/core";
 import { buildWebviewHtml } from "../src/html";
 import { serve, type Handlers } from "../src/rpc";
 
@@ -30,7 +30,7 @@ const fail = async (): Promise<never> => {
   throw new Error("boom");
 };
 const handlers = (overrides: Partial<Handlers> = {}): Handlers => ({
-  init: async () => ({ mode: "editor", documentId: "doc", theme: "clean" }),
+  init: async () => ({ mode: "editor", documentId: "doc", theme: "light", native: true }),
   loadDiagram: async () => diagram,
   saveDiagram: async () => null,
   applyEdit: async () => null,
@@ -90,9 +90,9 @@ describe("rpc server (extension side)", () => {
   it("validates events before posting them", () => {
     const f = fakeChannel();
     const server = serve(f.channel, handlers(), () => undefined);
-    server.emit({ kind: "event", type: "theme", theme: "obsidian" });
-    expect(() => server.emit({ kind: "event", type: "theme", theme: "neon" } as never)).toThrow();
-    expect(f.posted).toEqual([{ kind: "event", type: "theme", theme: "obsidian" }]);
+    server.emit({ kind: "event", type: "theme", theme: "dark", native: false });
+    expect(() => server.emit({ kind: "event", type: "theme", theme: "neon", native: false } as never)).toThrow();
+    expect(f.posted).toEqual([{ kind: "event", type: "theme", theme: "dark", native: false }]);
   });
 });
 

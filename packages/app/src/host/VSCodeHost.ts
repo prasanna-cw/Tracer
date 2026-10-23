@@ -8,7 +8,7 @@ import {
   type Params,
   type Result,
   type ThemeName,
-} from "@codemap/core";
+} from "@tracer/core";
 import type { HostAdapter } from "./HostAdapter";
 
 type VsCodeApi = { postMessage(message: unknown): void };
@@ -105,8 +105,8 @@ export class VSCodeHost implements HostAdapter {
   onDocumentInvalid(listener: (id: string, errors: string[]) => void): () => void {
     return this.on((e) => e.type === "documentInvalid" && listener(e.id, e.errors));
   }
-  onThemeChanged(listener: (theme: ThemeName) => void): () => void {
-    return this.on((e) => e.type === "theme" && listener(e.theme));
+  onThemeChanged(listener: (theme: ThemeName, native: boolean) => void): () => void {
+    return this.on((e) => e.type === "theme" && listener(e.theme, e.native));
   }
   reportStatus(status: Params<"reportStatus">): void {
     this.call("reportStatus", status).catch(() => undefined);

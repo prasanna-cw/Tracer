@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
-import { toPosix, type FileSystemHost } from "@codemap/core/analyzer";
+import { toPosix, type FileSystemHost } from "@tracer/core/analyzer";
 
 /** node:fs implementation of the analyzer's port. Reads lazily; nothing is cached or preloaded. */
 export const nodeFileSystem: FileSystemHost = {

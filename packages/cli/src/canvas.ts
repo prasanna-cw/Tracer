@@ -1,7 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { fromJsonCanvas, parseDiagram, toJsonCanvas } from "@codemap/core";
+import { fromJsonCanvas, parseDiagram, toJsonCanvas } from "@tracer/core";
 
 // npm runs scripts from the package root; INIT_CWD is where the user actually typed the command.
 const fromUserCwd = (p: string): string => resolve(process.env.INIT_CWD ?? process.cwd(), p);

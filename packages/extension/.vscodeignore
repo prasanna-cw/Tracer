@@ -5,3 +5,4 @@
 !dist/webview/**
 !package.json
 !README.md
+!media/**

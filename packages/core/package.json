@@ -1,5 +1,5 @@
 {
-  "name": "@codemap/core",
+  "name": "@tracer/core",
   "version": "0.0.0",
   "private": true,
   "type": "module",

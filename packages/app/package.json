@@ -1,5 +1,5 @@
 {
-  "name": "@codemap/app",
+  "name": "@tracer/app",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,7 +10,8 @@
     "build:webview": "vite build --mode webview --base ./ --outDir ../extension/dist/webview --emptyOutDir"
   },
   "dependencies": {
-    "@codemap/core": "*",
+    "@tracer/core": "*",
+    "@vscode/codicons": "^0.0.45",
     "@xyflow/react": "^12.12.0",
     "d3-drag": "^3.0.0",
     "d3-force": "^3.0.0",

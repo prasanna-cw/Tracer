@@ -34,6 +34,8 @@ type N = SimulationNodeDatum & { r: number };
 type L = SimulationLinkDatum<N>;
 
 const FRAME_BUDGET_MS = 14; // tick for at most this long, then post one frame of positions
+const WARM_MS = 600; // off-screen layout before the first frame of new files (at most)
+const WARM_ALPHA = 0.08; // ...or until the layout is this calm
 const COLLIDE_LIMIT = 1000; // collision costs ~25% of a tick; above this many nodes the layout reads fine without it
 
 export function createLayout(
@@ -104,6 +106,13 @@ export function createLayout(
           return;
         }
         sim.alpha(Math.max(sim.alpha(), 0.5));
+        // New files without positions: lay out off-screen first, so the first frame the user sees is close
+        // to final instead of an explosion from the center. Then the rest settles in animated frames.
+        if (m.nodes.some((n) => n.x === undefined)) {
+          sim.alpha(1);
+          const start = now();
+          while (sim.alpha() > WARM_ALPHA && now() - start < WARM_MS) sim.tick();
+        }
         run();
       } else if (m.type === "drag") {
         const n = sim.nodes()[m.index];

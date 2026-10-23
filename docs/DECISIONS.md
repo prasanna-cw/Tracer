@@ -4,7 +4,7 @@ Each entry: what, why, alternative considered.
 
 ## D1. `core` is consumed as TypeScript source, not built
 
-- **What:** `@codemap/core` exports `./src/index.ts`. Vite, vitest and (later) tsx/esbuild compile it directly. `npm run build` in core is a typecheck only.
+- **What:** `@tracer/core` exports `./src/index.ts`. Vite, vitest and (later) tsx/esbuild compile it directly. `npm run build` in core is a typecheck only.
 - **Why:** No build-order dance, no stale `dist/`, instant HMR across packages. The VS Code extension will be bundled with esbuild anyway.
 - **Alternative:** `tsc -b` project references emitting `dist/`. Revisit if core is ever published to npm.
 
@@ -27,7 +27,7 @@ Each entry: what, why, alternative considered.
 - **What:** Duplicate ids, edges to missing nodes, `file`/`link` nodes without `file`/`url`, and steps referencing unknown ids are **errors**, reported as `path: message` strings (`edges[1].toNode: unknown node "ghost"`).
 - **Why:** One validator for files, hand edits, and LLM output. The path format is precise enough to feed back to an LLM for a retry.
 - **Alternative:** Drop dangling edges with a warning. Friendlier for messy imports, but hides bugs.
-- **Update (Obsidian fixture `samples/save-flow.edited-in-obsidian.canvas`):** deleting a card in Obsidian removes its edges, but our walkthrough `steps` (which Obsidian doesn't know about) still point at the deleted node and edges. So **JSON Canvas import repairs steps**: missing `nodeIds`/`edgeIds` are pruned, steps with no nodes left are dropped, and each repair is a warning naming the step by title and id (`Step "Entities per risk" (s5): removed missing node ent-actions`). Dangling **edges** are still errors. Obsidian never produces them, so seeing one means a hand-edit bug worth surfacing. Native `.diagram.json` loading stays strict.
+- **Update (Obsidian fixture `samples/save-flow.edited-externally.canvas`):** deleting a card in Obsidian removes its edges, but our walkthrough `steps` (which Obsidian doesn't know about) still point at the deleted node and edges. So **JSON Canvas import repairs steps**: missing `nodeIds`/`edgeIds` are pruned, steps with no nodes left are dropped, and each repair is a warning naming the step by title and id (`Step "Entities per risk" (s5): removed missing node ent-actions`). Dangling **edges** are still errors. Obsidian never produces them, so seeing one means a hand-edit bug worth surfacing. Native `.diagram.json` loading stays strict.
 
 ## D5. JSON Canvas export: flatten + namespaced stash
 
@@ -113,16 +113,16 @@ Each entry: what, why, alternative considered.
 - **Syntax errors:** read from the parser's `parseDiagnostics`. That property is internal, but it has been stable for a decade, and the public alternatives parse every file twice. The file is skipped and a warning names its line.
 - **Alternative:** ts-morph as specified. Worth revisiting only if we need type information (call graphs), at which point a full Program is needed anyway.
 
-## D19. `FileSystemHost` port; separate `@codemap/core/analyzer` entry
+## D19. `FileSystemHost` port; separate `@tracer/core/analyzer` entry
 
 - **What:** The analyzer's only I/O is a five-method port (`readFile`, `fileExists`, `directoryExists`, `readDirectory`, optional `realpath`) with absolute forward-slash paths. The CLI implements it with `node:fs` (lazy reads; symlinked dirs not followed during the walk, to avoid loops). Tests use an in-memory map. The port is synchronous because `ts.resolveModuleName` is.
-- **Separate entry:** `@codemap/core/analyzer` pulls in the TypeScript compiler (several MB). The app imports only `@codemap/core`; the production bundle confirms it never ships.
+- **Separate entry:** `@tracer/core/analyzer` pulls in the TypeScript compiler (several MB). The app imports only `@tracer/core`; the production bundle confirms it never ships.
 - **VS Code:** the extension host has `node:fs`, so it reuses the CLI's implementation. `workspace.fs` is async and would not fit.
 
 ## D20. What "unresolved" means
 
 - **What:** Every import ends up in exactly one bucket:
-  - **edge:** it resolves to a file we analyzed. This holds even when TypeScript calls it an external library, because npm workspaces resolve `@codemap/core` through a `node_modules` symlink whose real path is in the repo.
+  - **edge:** it resolves to a file we analyzed. This holds even when TypeScript calls it an external library, because npm workspaces resolve `@tracer/core` through a `node_modules` symlink whose real path is in the repo.
   - **asset:** a non-code file that exists (`./app.css`, `./data.json`).
   - **unresolved:** a relative, absolute or tsconfig-alias specifier that points nowhere. Up to 200 are listed with their file.
   - **external:** everything else (`react`, `node:fs`).
@@ -175,8 +175,17 @@ Each entry: what, why, alternative considered.
 - **Windows quirks handled in `runTests.ts`:** (1) `ELECTRON_RUN_AS_NODE` is inherited when tests are started from a terminal inside VS Code, and makes the test VS Code start as plain Node, so it is removed. (2) Paths with spaces (`rust learning`) are split by the launcher, so a space-free junction to the repo is created in the temp folder.
 - **Tested version:** the current stable VS Code (1.143.0 at the time), not the `engines` minimum (1.90).
 
+## D29. Tracer: name, look, Light/Dark
+
+- **Name:** the product is **Tracer** (extension id `todo-publisher.tracer`, commands `tracer.*`, setting `tracer.theme`, editor `tracer.flowEditor`). Internal packages are `@tracer/*`. The JSON Canvas stash key is now `tracer`; files written with the old `codemap` key still import.
+- **Themes:** Light and Dark (Tracer palettes) plus **native**: with `tracer.theme: auto` in VS Code, the chrome uses VS Code's own theme variables (`--vscode-*`, `themes/native.css`), so it matches any theme including high contrast; category and graph colors follow VS Code's light/dark kind. In the browser the default follows the OS preference.
+- **UI:** compact 40px toolbar of codicon buttons (VS Code's icon font, bundled, no network) with tooltips; Flow | Graph segmented switch; Snap/Minimap/exports in a **⋯** menu; walkthrough as a floating card with a progress strip.
+- **Graph defaults:** search, three filter chips and zoom buttons are all that is shown; Folders and **Layout settings** (the force sliders) are collapsed. The ~12 most-connected files are always labelled so the overview names what matters; labels have a background halo.
+- **Graph smoothness:** the worker lays new files out off-screen first (up to 600 ms) so the first frame is near final and is fitted at once (measured: first frame 232 ms after opening this repo's graph); nothing is drawn before positions exist; hover hit-testing is coalesced to one per frame; canvas pixel ratio capped at 2. The dev server pre-bundles `d3-force` (it is only imported by the inline worker, and late discovery forced a page reload).
+- **Activity bar:** a Tracer view container (monochrome glyph `media/tracer.svg`) with a sidebar: Open Graph, Open a saved flow, and the workspace's saved flows (refreshes on file create/delete). Extension icon `media/icon.png` (rendered from SVG).
+- **No AI:** decided with the Founder: Tracer uses no LLM or AI service. Flows are derived from the code's structure (and can be edited by hand).
+
 ## Phase 3 seams (not built)
 
 - **Graph refresh:** re-run the analysis on file changes (debounced `FileSystemWatcher` on source files) and push the new graph as an event; today the command re-analyzes on each run.
-- **LLM generation:** prompt with the `diagramSchema` (convertible to JSON Schema via zod 4's `z.toJSONSchema`), validate with `parseDiagram`, retry with the `errors` array. In the extension this is one more request/handler pair in the protocol.
 - **Staleness:** extend `source` with `hash` (content hash of the referenced range or file). The host recomputes and the canvas badges nodes whose hash differs. Because `source` is loose today, adding the field is backward compatible.

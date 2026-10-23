@@ -1,6 +1,6 @@
 import type { SimulationLinkDatum, SimulationNodeDatum } from "d3-force";
 import type { ZoomTransform } from "d3-zoom";
-import type { CodeGraphNode } from "@codemap/core";
+import type { CodeGraphNode } from "@tracer/core";
 
 /** `colorIndex` is the folder's palette slot; `color` is resolved from the theme just before each frame. */
 export type SimNode = SimulationNodeDatum & { id: string; node: CodeGraphNode; r: number; colorIndex: number; color: string; label: string };
@@ -18,6 +18,8 @@ export type Scene = {
   matches: ReadonlySet<string>;
   cycleKeys: ReadonlySet<string> | null; // null = cycle highlighting off
   labelZoom: number;
+  /** The most connected files: labelled at every zoom so the overview names what matters. */
+  hubs: ReadonlySet<string>;
 };
 
 const DIM = 0.15;
@@ -98,14 +100,18 @@ export function drawGraph(ctx: CanvasRenderingContext2D, width: number, height: 
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
   ctx.fillStyle = s.colors.text;
+  ctx.strokeStyle = s.colors.bg;
+  ctx.lineWidth = 3;
+  ctx.lineJoin = "round";
   const all = t.k >= s.labelZoom;
   for (const n of s.nodes) {
-    const special = n.id === s.selectedId || (s.focus !== null && lit(n.id)) || s.matches.has(n.id);
+    const special = n.id === s.selectedId || (s.focus !== null && lit(n.id)) || s.matches.has(n.id) || (!s.focus && s.hubs.has(n.id));
     if (!all && !special) continue;
     const sx = t.applyX(n.x ?? 0);
     const sy = t.applyY(n.y ?? 0) + n.r * t.k + 3;
     if (sx < -100 || sx > width + 100 || sy < -20 || sy > height + 20) continue;
     ctx.globalAlpha = lit(n.id) ? 1 : DIM * 2;
+    ctx.strokeText(n.label, sx, sy); // halo in the background color keeps labels readable over edges
     ctx.fillText(n.label, sx, sy);
   }
   ctx.globalAlpha = 1;

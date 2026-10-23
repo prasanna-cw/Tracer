@@ -1,0 +1,23 @@
+/*
+ * Inside VS Code with `tracer.theme: auto`: the chrome takes VS Code's own colors and font, so Tracer looks
+ * like part of the editor under any theme (including high contrast). Category colors and the graph palette
+ * still come from light.css/dark.css (picked by VS Code's light/dark kind). Tokens only.
+ */
+:root[data-native="true"] {
+  --font: var(--vscode-font-family);
+  --mono: var(--vscode-editor-font-family);
+  --bg: var(--vscode-editor-background);
+  --surface: var(--vscode-editorWidget-background, var(--vscode-sideBar-background));
+  --surface-2: var(--vscode-input-background);
+  --hover: var(--vscode-toolbar-hoverBackground);
+  --active: var(--vscode-toolbar-activeBackground, var(--vscode-toolbar-hoverBackground));
+  --border: var(--vscode-widget-border, var(--vscode-panel-border));
+  --text: var(--vscode-foreground);
+  --muted: var(--vscode-descriptionForeground);
+  --accent: var(--vscode-button-background);
+  --accent-text: var(--vscode-button-foreground);
+  --accent-soft: var(--vscode-list-activeSelectionBackground, var(--vscode-toolbar-hoverBackground));
+  --focus: var(--vscode-focusBorder);
+  --label-bg: var(--vscode-editorWidget-background);
+  --shadow: 0 6px 22px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.3));
+}

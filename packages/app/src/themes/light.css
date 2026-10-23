@@ -1,0 +1,42 @@
+/* Light: neutral surfaces, soft category fills with darker same-family text, thin borders. Tokens only. */
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "Cascadia Code", "SF Mono", Consolas, monospace;
+  --bg: #f8f8f7;
+  --surface: #ffffff;
+  --surface-2: #f1f1ef;
+  --hover: rgba(15, 15, 20, 0.06);
+  --active: rgba(15, 15, 20, 0.1);
+  --border: #e4e3df;
+  --text: #1d1d1f;
+  --muted: #6b6a66;
+  --accent: #5b4fe0;
+  --accent-text: #ffffff;
+  --accent-soft: rgba(91, 79, 224, 0.12);
+  --focus: #5b4fe0;
+  --grid: #dcdbd6;
+  --edge: #a3a19a;
+  --edge-active: #5b4fe0;
+  --label-bg: #ffffff;
+  --group-fill: rgba(30, 30, 35, 0.025);
+  --group-border: #c9c7c0;
+  --shadow: 0 6px 24px rgba(20, 20, 30, 0.12), 0 1px 3px rgba(20, 20, 30, 0.08);
+  --dim-opacity: 0.22;
+  --glow: none;
+
+  /* Graph view (the canvas reads these): folder palette, edges, cycles. */
+  --graph-1: #6b5fd3; --graph-2: #c97a3a; --graph-3: #2f8ea3; --graph-4: #3f8f58; --graph-5: #a88a1c; --graph-6: #b8587a;
+  --graph-edge: rgba(60, 58, 52, 0.2);
+  --graph-cycle: #d33c3c;
+
+  --cat-plain-fill: #ffffff;    --cat-plain-stroke: #dcdad4;   --cat-plain-text: #1d1d1f;
+  --cat-layer-fill: #f1eefd;    --cat-layer-stroke: #c9bff2;   --cat-layer-text: #44378a;
+  --cat-entity-fill: #fdf1e7;   --cat-entity-stroke: #efc8a6;  --cat-entity-text: #7c4216;
+  --cat-db-fill: #e7f4f7;       --cat-db-stroke: #a9d6e0;      --cat-db-text: #1b5664;
+  --cat-service-fill: #e9f5ed;  --cat-service-stroke: #b3d9be; --cat-service-text: #215d36;
+  --cat-data-fill: #fcf7df;     --cat-data-stroke: #e6d48c;    --cat-data-text: #625011;
+  --cat-note-fill: #f4f4f1;     --cat-note-stroke: #d6d4cc;    --cat-note-text: #44423c;
+  --cat-warning-fill: #fdecec;  --cat-warning-stroke: #efb9b9; --cat-warning-text: #872626;
+}

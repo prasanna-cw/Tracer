@@ -5,12 +5,12 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import * as vscode from "vscode";
-import type { CodeGraphSummary } from "@codemap/core";
+import type { CodeGraphSummary } from "@tracer/core";
 
 type Api = { statusOf(uri: string): { state: string; nodeCount?: number; detail?: string } | undefined };
 
 const repo = resolve(__dirname, "../../../..");
-const EXTENSION_ID = "todo-publisher.codemap-studio-vscode";
+const EXTENSION_ID = "todo-publisher.tracer";
 
 async function waitFor<T>(what: string, get: () => T | undefined, timeoutMs = 30_000): Promise<T> {
   const until = Date.now() + timeoutMs;
@@ -41,7 +41,7 @@ export async function run(): Promise<void> {
   });
 
   await test("Open Graph View activates the extension and analyzes the workspace (samples/demo-repo)", async () => {
-    const summary = await vscode.commands.executeCommand<CodeGraphSummary | undefined>("codemap.openGraph");
+    const summary = await vscode.commands.executeCommand<CodeGraphSummary | undefined>("tracer.openGraph");
     assert.equal(ext.isActive, true);
     assert.ok(summary, "the command returned no summary");
     assert.deepEqual(
@@ -51,9 +51,9 @@ export async function run(): Promise<void> {
     await vscode.commands.executeCommand("workbench.action.closeAllEditors");
   });
 
-  await test("opens save-flow.diagram.json in the CodeMap editor and the webview renders it", async () => {
+  await test("opens save-flow.diagram.json in the Tracer editor and the webview renders it", async () => {
     const uri = vscode.Uri.file(join(repo, "samples", "save-flow.diagram.json"));
-    await vscode.commands.executeCommand("vscode.openWith", uri, "codemap.diagramEditor");
+    await vscode.commands.executeCommand("vscode.openWith", uri, "tracer.flowEditor");
     const status = await waitFor("the webview to report", () => ext.exports.statusOf(uri.toString()));
     assert.deepEqual({ state: status.state, nodeCount: status.nodeCount }, { state: "loaded", nodeCount: 16 }, status.detail);
     await vscode.commands.executeCommand("workbench.action.closeAllEditors");
@@ -61,17 +61,17 @@ export async function run(): Promise<void> {
 
   await test("opens a .canvas file in the same editor (JSON Canvas import)", async () => {
     const uri = vscode.Uri.file(join(repo, "samples", "architecture.canvas"));
-    await vscode.commands.executeCommand("vscode.openWith", uri, "codemap.diagramEditor");
+    await vscode.commands.executeCommand("vscode.openWith", uri, "tracer.flowEditor");
     const status = await waitFor("the webview to report", () => ext.exports.statusOf(uri.toString()));
     assert.deepEqual({ state: status.state, nodeCount: status.nodeCount }, { state: "loaded", nodeCount: 7 }, status.detail);
     await vscode.commands.executeCommand("workbench.action.closeAllEditors");
   });
 
   await test("an invalid document is reported as an error, not a blank canvas", async () => {
-    const file = join(mkdtempSync(join(tmpdir(), "codemap-")), "broken.diagram.json");
+    const file = join(mkdtempSync(join(tmpdir(), "tracer-")), "broken.diagram.json");
     writeFileSync(file, JSON.stringify({ version: 1, title: "x", nodes: [], edges: [{ id: "e", fromNode: "a", toNode: "b" }] }));
     const uri = vscode.Uri.file(file);
-    await vscode.commands.executeCommand("vscode.openWith", uri, "codemap.diagramEditor");
+    await vscode.commands.executeCommand("vscode.openWith", uri, "tracer.flowEditor");
     const status = await waitFor("the webview to report", () => ext.exports.statusOf(uri.toString()));
     assert.equal(status.state, "error");
     assert.match(status.detail ?? "", /unknown node "a"/);

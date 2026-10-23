@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { codeGraphSchema } from "@codemap/core";
+import { codeGraphSchema } from "@tracer/core";
 import { defaultFilters, groupColors, groupResolver, neighborsOf, searchMatches, visibleNodeIds } from "../src/graph/graphModel";
 
 const demo = codeGraphSchema.parse(

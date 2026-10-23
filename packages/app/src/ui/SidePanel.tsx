@@ -1,5 +1,6 @@
-import type { DiagramNode } from "@codemap/core";
+import type { DiagramNode } from "@tracer/core";
 import { Markdown } from "../canvas/Markdown";
+import { Icon, IconButton } from "./Icon";
 
 type Props = {
   node: DiagramNode;
@@ -19,9 +20,7 @@ export function SidePanel({ node, editable, onEditText, onOpenSource, onClose }:
           <span className="chip">{node.kind ?? node.type}</span>
           {node.category && <span className="chip">{node.category}</span>}
         </div>
-        <button type="button" className="icon-btn" aria-label="Close details" onClick={onClose}>
-          ×
-        </button>
+        <IconButton icon="close" label="Close details" onClick={onClose} />
       </header>
       <h2>{heading}</h2>
       {node.subtitle && <p className="mono muted">{node.subtitle}</p>}
@@ -62,7 +61,8 @@ export function SidePanel({ node, editable, onEditText, onOpenSource, onClose }:
             {source.path}
             {source.line ? `:${source.line}` : ""}
           </span>
-          <button type="button" onClick={() => onOpenSource(source.path, source.line)}>
+          <button type="button" className="btn" onClick={() => onOpenSource(source.path, source.line)}>
+            <Icon name="go-to-file" />
             Open source
           </button>
         </div>

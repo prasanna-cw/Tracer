@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { diagramToText, textToDiagram, type Params } from "@codemap/core";
+import { diagramToText, textToDiagram, type Params } from "@tracer/core";
 import { serve } from "./rpc";
 import { currentTheme, onThemeChange } from "./theme";
 import { webviewHtml, webviewOptions } from "./webview";
@@ -12,8 +12,8 @@ export type Status = Params<"reportStatus">;
  * - every committed change in the webview becomes one WorkspaceEdit, so VS Code owns undo/redo, dirty and save;
  * - every change from elsewhere (undo, a text editor, a save from Obsidian on disk) is pushed to the webview.
  */
-export class DiagramEditorProvider implements vscode.CustomTextEditorProvider {
-  static readonly viewType = "codemap.diagramEditor";
+export class FlowEditorProvider implements vscode.CustomTextEditorProvider {
+  static readonly viewType = "tracer.flowEditor";
 
   constructor(
     private readonly context: vscode.ExtensionContext,
@@ -44,7 +44,7 @@ export class DiagramEditorProvider implements vscode.CustomTextEditorProvider {
     const server = serve(
       panel.webview,
       {
-        init: async () => ({ mode: "editor", documentId: id, theme: currentTheme() }),
+        init: async () => ({ mode: "editor", documentId: id, ...currentTheme() }),
         loadDiagram: async ({ id: requested }) => {
           assertId(requested);
           shown = document.getText();
@@ -68,7 +68,7 @@ export class DiagramEditorProvider implements vscode.CustomTextEditorProvider {
           return null;
         },
         loadGraph: async () => {
-          throw new Error('Open the graph with "CodeMap: Open Graph View".');
+          throw new Error('Open the graph with "Tracer: Open Graph".');
         },
         // Node sources are workspace-relative; diagrams outside a workspace resolve next to the file.
         openSource: async ({ path, line }) => openSource([...workspaceFolders(), folder], path, line),
@@ -104,13 +104,13 @@ export class DiagramEditorProvider implements vscode.CustomTextEditorProvider {
         if (disk === document.getText()) return;
         if (document.isDirty) {
           void vscode.window.showWarningMessage(
-            `CodeMap: ${vscode.workspace.asRelativePath(document.uri)} changed on disk while you have unsaved changes. Save to keep yours, or revert to load the file.`,
+            `Tracer: ${vscode.workspace.asRelativePath(document.uri)} changed on disk while you have unsaved changes. Save to keep yours, or revert to load the file.`,
           );
           return;
         }
         push(disk);
       }),
-      onThemeChange((theme) => server.emit({ kind: "event", type: "theme", theme })),
+      onThemeChange((t) => server.emit({ kind: "event", type: "theme", ...t })),
     ];
     panel.onDidDispose(() => {
       server.dispose();

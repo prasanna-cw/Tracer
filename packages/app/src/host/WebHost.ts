@@ -7,7 +7,7 @@ import {
   textToDiagram,
   type CodeGraph,
   type Diagram,
-} from "@codemap/core";
+} from "@tracer/core";
 import type { HostAdapter } from "./HostAdapter";
 
 // Samples are bundled at build time (and hot-reloaded in dev), so the prototype needs no server.

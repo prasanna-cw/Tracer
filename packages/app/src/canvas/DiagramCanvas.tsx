@@ -9,7 +9,7 @@ import {
   useReactFlow,
   type NodeChange,
 } from "@xyflow/react";
-import { groupMembers, moveGroup, type Diagram } from "@codemap/core";
+import { groupMembers, moveGroup, type Diagram } from "@tracer/core";
 import { EdgeMarkers, edgeTypes } from "./DiagramEdge";
 import type { HistoryAction } from "./history";
 import { CanvasActions, nodeTypes } from "./nodes";

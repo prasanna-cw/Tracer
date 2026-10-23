@@ -1,7 +1,7 @@
 {
-  "name": "codemap-studio-vscode",
-  "displayName": "CodeMap Studio",
-  "description": "Diagram canvas (JSON Canvas compatible) and import graph for TypeScript/JavaScript. Runs locally: no network, no telemetry.",
+  "name": "tracer",
+  "displayName": "Tracer",
+  "description": "Trace your code: flow diagrams of files and functions, and a map and graph of the whole workspace. Runs locally: no network, no telemetry.",
   "version": "0.0.1",
   "publisher": "todo-publisher",
   "license": "UNLICENSED",
@@ -15,27 +15,77 @@
   ],
   "main": "./dist/extension.js",
   "activationEvents": [
-    "onCommand:codemap.openGraph",
-    "onCommand:codemap.openDiagram",
-    "onCustomEditor:codemap.diagramEditor"
+    "onCommand:tracer.openGraph",
+    "onCommand:tracer.openDiagram",
+    "onView:tracer.home",
+    "onCustomEditor:tracer.flowEditor"
   ],
   "contributes": {
-    "commands": [
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "tracer",
+          "title": "Tracer",
+          "icon": "media/tracer.svg"
+        }
+      ]
+    },
+    "views": {
+      "tracer": [
+        {
+          "id": "tracer.home",
+          "name": "Workspace",
+          "icon": "media/tracer.svg",
+          "contextualTitle": "Tracer"
+        }
+      ]
+    },
+    "viewsWelcome": [
       {
-        "command": "codemap.openGraph",
-        "title": "Open Graph View",
-        "category": "CodeMap"
-      },
-      {
-        "command": "codemap.openDiagram",
-        "title": "Open Diagram",
-        "category": "CodeMap"
+        "view": "tracer.home",
+        "contents": "Open a folder to trace its code.\n[Open Folder](command:workbench.action.files.openFolder)",
+        "when": "workbenchState == empty"
       }
     ],
+    "commands": [
+      {
+        "command": "tracer.openGraph",
+        "title": "Open Graph",
+        "category": "Tracer",
+        "icon": "$(graph)"
+      },
+      {
+        "command": "tracer.openDiagram",
+        "title": "Open Saved Flow…",
+        "category": "Tracer",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "tracer.refresh",
+        "title": "Refresh",
+        "category": "Tracer",
+        "icon": "$(refresh)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "tracer.refresh",
+          "when": "view == tracer.home",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "tracer.refresh",
+          "when": "false"
+        }
+      ]
+    },
     "customEditors": [
       {
-        "viewType": "codemap.diagramEditor",
-        "displayName": "CodeMap Diagram",
+        "viewType": "tracer.flowEditor",
+        "displayName": "Tracer Flow",
         "selector": [
           {
             "filenamePattern": "*.diagram.json"
@@ -48,39 +98,53 @@
       }
     ],
     "configuration": {
-      "title": "CodeMap",
+      "title": "Tracer",
       "properties": {
-        "codemap.theme": {
+        "tracer.theme": {
           "type": "string",
           "enum": [
             "auto",
-            "clean",
-            "obsidian"
+            "light",
+            "dark"
           ],
           "enumDescriptions": [
-            "Follow the VS Code theme: Clean for light themes, Obsidian for dark ones.",
-            "Always the light Clean theme.",
-            "Always the dark Obsidian theme."
+            "Match VS Code: its colors, light or dark.",
+            "Always Tracer's light theme.",
+            "Always Tracer's dark theme."
           ],
           "default": "auto",
-          "description": "Theme of CodeMap diagrams and the graph view."
+          "description": "Theme of Tracer's flow and graph views."
         }
       }
     }
   },
   "scripts": {
     "build": "tsc -p tsconfig.json && node build.mjs",
-    "package": "npm run build && vsce package --no-dependencies --allow-missing-repository --skip-license --out codemap-studio.vsix",
+    "package": "npm run build && vsce package --no-dependencies --allow-missing-repository --skip-license --out tracer.vsix",
     "test:vscode": "npm run build && tsx test/e2e/runTests.ts"
   },
   "dependencies": {
-    "@codemap/cli": "*",
-    "@codemap/core": "*"
+    "@tracer/cli": "*",
+    "@tracer/core": "*"
   },
   "devDependencies": {
     "@types/vscode": "1.90.0",
     "@vscode/test-electron": "2.5.2",
     "@vscode/vsce": "3.9.2",
     "esbuild": "^0.28.0"
-  }
+  },
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#2b2470",
+    "theme": "dark"
+  },
+  "keywords": [
+    "flow",
+    "diagram",
+    "call graph",
+    "dependency graph",
+    "architecture",
+    "imports",
+    "visualization"
+  ]
 }

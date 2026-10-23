@@ -1,4 +1,4 @@
-import type { CodeGraph, Diagram, Params, ThemeName } from "@codemap/core";
+import type { CodeGraph, Diagram, Params, ThemeName } from "@tracer/core";
 
 /** Which UI the app shows. */
 export type HostEnv = { kind: "web" } | { kind: "editor"; documentId: string } | { kind: "graph" };
@@ -24,6 +24,7 @@ export interface HostAdapter {
   /** The document changed outside the app (undo/redo, another editor, a save from Obsidian). Returns unsubscribe. */
   onDocumentChanged?(listener: (id: string, diagram: Diagram) => void): () => void;
   onDocumentInvalid?(listener: (id: string, errors: string[]) => void): () => void;
-  onThemeChanged?(listener: (theme: ThemeName) => void): () => void;
+  /** `native`: use the host's own colors (VS Code theme) instead of Tracer's palette for the chrome. */
+  onThemeChanged?(listener: (theme: ThemeName, native: boolean) => void): () => void;
   reportStatus?(status: Params<"reportStatus">): void;
 }

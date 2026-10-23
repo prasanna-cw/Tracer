@@ -1,5 +1,5 @@
 import type { Edge, Node } from "@xyflow/react";
-import { CATEGORIES, chooseSides, hashText, resolveCategory, type Diagram, type DiagramEdge, type DiagramNode } from "@codemap/core";
+import { CATEGORIES, chooseSides, hashText, resolveCategory, type Diagram, type DiagramEdge, type DiagramNode } from "@tracer/core";
 
 export type FlowNode = Node<DiagramNode>;
 export type EdgeState = "active" | "dim" | undefined;

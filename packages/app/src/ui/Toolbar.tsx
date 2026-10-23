@@ -1,9 +1,12 @@
-export type Theme = "clean" | "obsidian";
+import { IconButton, TracerMark } from "./Icon";
+import { MenuButton, type MenuItem } from "./Menu";
+
+export type Theme = "light" | "dark";
 export type SaveState = "idle" | "saving" | "saved";
 export type View = "diagram" | "graph";
 
 type Props = {
-  /** web: view tabs, diagram picker, theme switch. editor (VS Code): one document; the theme follows VS Code. */
+  /** web: brand, Flow/Graph switch, file picker, theme toggle. editor (VS Code): one document; theme follows VS Code. */
   mode: "web" | "editor";
   view: View;
   onView: (v: View) => void;
@@ -30,82 +33,84 @@ type Props = {
 };
 
 export function Toolbar(p: Props) {
+  const web = p.mode === "web";
+  const more: MenuItem[] = [
+    { kind: "heading", label: "View" },
+    { kind: "check", label: "Snap to grid", checked: p.snap, onSelect: p.onToggleSnap },
+    { kind: "check", label: "Minimap", checked: p.minimap, onSelect: p.onToggleMinimap },
+    { kind: "separator" },
+    { kind: "heading", label: "Export" },
+    { kind: "action", label: "Image (PNG)", icon: "file-media", onSelect: () => p.onExport("png") },
+    { kind: "action", label: "Vector (SVG)", icon: "file-code", onSelect: () => p.onExport("svg") },
+    { kind: "action", label: "JSON Canvas (.canvas)", icon: "json", onSelect: () => p.onExport("canvas") },
+  ];
   return (
-    <header className="toolbar" role="toolbar" aria-label="Diagram">
-      <strong className="brand">CodeMap</strong>
-      {p.mode === "web" && (
-        <div className="group tabs" role="tablist" aria-label="View">
-          {(["diagram", "graph"] as const).map((v) => (
-            <button key={v} type="button" role="tab" aria-selected={p.view === v} onClick={() => p.onView(v)}>
-              {v === "diagram" ? "Diagram" : "Graph"}
-            </button>
-          ))}
-        </div>
+    <header className="toolbar" role="toolbar" aria-label="Tracer">
+      {web && (
+        <>
+          <span className="brand">
+            <TracerMark />
+            Tracer
+          </span>
+          <div className="segmented" role="tablist" aria-label="View">
+            {(["diagram", "graph"] as const).map((v) => (
+              <button key={v} type="button" role="tab" aria-selected={p.view === v} onClick={() => p.onView(v)}>
+                {v === "diagram" ? "Flow" : "Graph"}
+              </button>
+            ))}
+          </div>
+        </>
       )}
+      {web && p.view === "diagram" && (
+        <select className="picker" aria-label="Diagram" value={p.currentId ?? ""} onChange={(e) => p.onOpen(e.target.value)}>
+          {p.diagrams.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.title}
+            </option>
+          ))}
+        </select>
+      )}
+
+      <span className="tb-spacer" />
 
       {p.view === "diagram" && (
         <>
-          {p.mode === "web" && (
-            <select aria-label="Diagram" value={p.currentId ?? ""} onChange={(e) => p.onOpen(e.target.value)}>
-              {p.diagrams.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.title}
-                </option>
-              ))}
-            </select>
-          )}
-
-          <div className="group">
-            <button type="button" onClick={p.onUndo} disabled={!p.canUndo} title="Undo (Ctrl+Z)">
-              Undo
-            </button>
-            <button type="button" onClick={p.onRedo} disabled={!p.canRedo} title="Redo (Ctrl+Shift+Z)">
-              Redo
-            </button>
-            <button type="button" onClick={p.onSave} title="Save (Ctrl+S)" disabled={p.saveState === "saving"}>
-              {p.dirty && <span className="dirty-dot" aria-label="Unsaved changes" />}
-              Save
-            </button>
+          <div className="tb-group">
+            <IconButton icon="discard" label="Undo (Ctrl+Z)" onClick={p.onUndo} disabled={!p.canUndo} />
+            <IconButton icon="redo" label="Redo (Ctrl+Shift+Z)" onClick={p.onRedo} disabled={!p.canRedo} />
+            <IconButton
+              icon="save"
+              label={p.dirty ? "Save (Ctrl+S) · unsaved changes" : "Save (Ctrl+S)"}
+              badge={p.dirty}
+              onClick={p.onSave}
+              disabled={p.saveState === "saving"}
+            />
             <span className="save-status" aria-live="polite">
               {p.saveState === "saving" ? "Saving…" : p.saveState === "saved" ? "Saved" : ""}
             </span>
           </div>
-
-          <div className="group">
-            <span className="muted">Export</span>
-            <button type="button" onClick={() => p.onExport("canvas")} title="JSON Canvas for Obsidian">
-              .canvas
-            </button>
-            <button type="button" onClick={() => p.onExport("svg")} title="SVG of the current view">
-              SVG
-            </button>
-            <button type="button" onClick={() => p.onExport("png")} title="PNG of the current view">
-              PNG
-            </button>
-          </div>
-
-          <div className="group">
-            <button type="button" aria-pressed={p.walkthrough} onClick={p.onToggleWalkthrough} disabled={!p.hasSteps}>
-              Walkthrough
-            </button>
-            <button type="button" aria-pressed={p.snap} onClick={p.onToggleSnap}>
-              Snap
-            </button>
-            <button type="button" aria-pressed={p.minimap} onClick={p.onToggleMinimap}>
-              Minimap
-            </button>
-          </div>
+          <span className="tb-divider" />
+          <button
+            type="button"
+            className="text-btn"
+            aria-pressed={p.walkthrough}
+            onClick={p.onToggleWalkthrough}
+            disabled={!p.hasSteps}
+            title={p.hasSteps ? "Step through the flow (←/→, Esc)" : "This diagram has no walkthrough steps"}
+          >
+            <span className={`codicon codicon-${p.walkthrough ? "debug-stop" : "play"}`} aria-hidden="true" />
+            Walkthrough
+          </button>
+          <MenuButton icon="ellipsis" label="More" items={more} />
         </>
       )}
 
-      {p.mode === "web" && (
-        <div className="group theme-switch" role="radiogroup" aria-label="Theme">
-          {(["clean", "obsidian"] as const).map((t) => (
-            <button key={t} type="button" role="radio" aria-checked={p.theme === t} onClick={() => p.onTheme(t)}>
-              {t === "clean" ? "Clean" : "Obsidian"}
-            </button>
-          ))}
-        </div>
+      {web && (
+        <IconButton
+          icon="color-mode"
+          label={`Switch to ${p.theme === "light" ? "dark" : "light"} theme`}
+          onClick={() => p.onTheme(p.theme === "light" ? "dark" : "light")}
+        />
       )}
     </header>
   );

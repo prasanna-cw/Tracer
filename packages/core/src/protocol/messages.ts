@@ -8,7 +8,7 @@ import { diagramSchema, formatIssues, type ParseResult } from "../schema/diagram
  * untrusted from the extension's point of view (it renders file contents), and vice versa.
  */
 
-export const themeSchema = z.enum(["clean", "obsidian"]);
+export const themeSchema = z.enum(["light", "dark"]);
 export type ThemeName = z.infer<typeof themeSchema>;
 
 const id = z.string().min(1);
@@ -19,7 +19,8 @@ export const methods = {
   /** First call after load: which UI to show. */
   init: {
     params: z.object({}),
-    result: z.object({ mode: z.enum(["editor", "graph"]), documentId: id.optional(), theme: themeSchema }),
+    // native: follow the host's own colors (VS Code theme) instead of Tracer's light/dark palette.
+    result: z.object({ mode: z.enum(["editor", "graph"]), documentId: id.optional(), theme: themeSchema, native: z.boolean() }),
   },
   loadDiagram: { params: z.object({ id }), result: diagramSchema },
   /** Explicit save (toolbar). In the custom editor this writes the document and saves it. */
@@ -60,7 +61,7 @@ const responseSchema = z.discriminatedUnion("ok", [
 export type Response = z.infer<typeof responseSchema>;
 
 const eventSchema = z.discriminatedUnion("type", [
-  z.object({ kind: z.literal("event"), type: z.literal("theme"), theme: themeSchema }),
+  z.object({ kind: z.literal("event"), type: z.literal("theme"), theme: themeSchema, native: z.boolean() }),
   /** The document changed outside the webview: undo/redo, another editor, an Obsidian save on disk. */
   z.object({ kind: z.literal("event"), type: z.literal("documentChanged"), id, diagram: diagramSchema }),
   /** The document on disk/in the editor no longer parses; the webview shows the errors instead of the canvas. */

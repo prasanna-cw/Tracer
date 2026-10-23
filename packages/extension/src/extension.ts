@@ -1,23 +1,35 @@
 import * as vscode from "vscode";
-import { DiagramEditorProvider, type Status } from "./diagramEditor";
+import { FlowEditorProvider, type Status } from "./diagramEditor";
 import { openGraphView } from "./graphPanel";
+import { SidebarProvider } from "./sidebar";
 import { findDiagrams } from "./workspace";
 
 /**
- * Activated only by the two commands or by opening a *.diagram.json / *.canvas file (see activationEvents).
+ * Activated only by Tracer's commands and view, or by opening a *.diagram.json / *.canvas file (see activationEvents).
  * Nothing here talks to the network, and there is no telemetry.
  */
 export function activate(context: vscode.ExtensionContext) {
-  const output = vscode.window.createOutputChannel("CodeMap");
+  const output = vscode.window.createOutputChannel("Tracer");
   const statuses = new Map<string, Status>();
 
   context.subscriptions.push(
     output,
-    vscode.window.registerCustomEditorProvider(DiagramEditorProvider.viewType, new DiagramEditorProvider(context, output, statuses), {
+    vscode.window.registerCustomEditorProvider(FlowEditorProvider.viewType, new FlowEditorProvider(context, output, statuses), {
       supportsMultipleEditorsPerDocument: false,
     }),
-    vscode.commands.registerCommand("codemap.openGraph", () => openGraphView(context, output)),
-    vscode.commands.registerCommand("codemap.openDiagram", openDiagramPicker),
+    vscode.commands.registerCommand("tracer.openGraph", () => openGraphView(context, output)),
+    vscode.commands.registerCommand("tracer.openDiagram", openDiagramPicker),
+  );
+
+  const sidebar = new SidebarProvider();
+  const diagramFiles = vscode.workspace.createFileSystemWatcher("**/*.{diagram.json,canvas}", false, true, false);
+  context.subscriptions.push(
+    vscode.window.registerTreeDataProvider("tracer.home", sidebar),
+    vscode.commands.registerCommand("tracer.refresh", () => sidebar.refresh()),
+    diagramFiles,
+    diagramFiles.onDidCreate(() => sidebar.refresh()),
+    diagramFiles.onDidDelete(() => sidebar.refresh()),
+    vscode.workspace.onDidChangeWorkspaceFolders(() => sidebar.refresh()),
   );
 
   // Exported for the integration tests: whether an open editor's webview rendered its document.
@@ -27,7 +39,7 @@ export function activate(context: vscode.ExtensionContext) {
 async function openDiagramPicker(): Promise<void> {
   const files = await findDiagrams();
   if (!files.length) {
-    void vscode.window.showInformationMessage("CodeMap: no *.diagram.json or *.canvas files in this workspace.");
+    void vscode.window.showInformationMessage("Tracer: no *.diagram.json or *.canvas files in this workspace.");
     return;
   }
   const items = files
@@ -36,8 +48,8 @@ async function openDiagramPicker(): Promise<void> {
       return { label: relative.slice(relative.lastIndexOf("/") + 1), description: relative, uri };
     })
     .sort((a, b) => a.description.localeCompare(b.description));
-  const pick = await vscode.window.showQuickPick(items, { placeHolder: "Open a diagram in CodeMap", matchOnDescription: true });
-  if (pick) await vscode.commands.executeCommand("vscode.openWith", pick.uri, DiagramEditorProvider.viewType);
+  const pick = await vscode.window.showQuickPick(items, { placeHolder: "Open a saved flow in Tracer", matchOnDescription: true });
+  if (pick) await vscode.commands.executeCommand("vscode.openWith", pick.uri, FlowEditorProvider.viewType);
 }
 
 export function deactivate(): void {

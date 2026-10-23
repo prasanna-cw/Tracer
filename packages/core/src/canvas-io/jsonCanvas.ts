@@ -14,7 +14,14 @@ import { parseDiagram, resolveCategory } from "../schema/diagram";
  * deleted nodes/edges) and reports every repair as a warning.
  */
 
-const EXT_KEY = "codemap";
+const EXT_KEY = "tracer";
+const LEGACY_EXT_KEY = "codemap"; // written by builds before the rename; still read
+
+/** Splits our stash off a JSON Canvas object (either key), returning the rest untouched. */
+function takeExt(raw: Record<string, unknown>): { ext: unknown; rest: Record<string, unknown> } {
+  const { [EXT_KEY]: ext, [LEGACY_EXT_KEY]: legacy, ...rest } = raw;
+  return { ext: ext ?? legacy, rest };
+}
 
 type Rec = Record<string, unknown>;
 type Rich = Pick<DiagramNode, "title" | "subtitle" | "text" | "rows">;
@@ -147,7 +154,7 @@ export function toJsonCanvas(diagram: Diagram): JsonCanvas {
 }
 
 function importNode(raw: Rec, warnings: string[]): Rec {
-  const { [EXT_KEY]: ext, ...node } = raw;
+  const { ext, rest: node } = takeExt(raw);
   if (!isRec(ext)) return node;
 
   const { text: originalText, textHash, derivedColor, ...fields } = ext;
@@ -177,7 +184,7 @@ function importNode(raw: Rec, warnings: string[]): Rec {
 }
 
 function importEdge(raw: Rec): Rec {
-  const { [EXT_KEY]: ext, ...edge } = raw;
+  const { ext, rest: edge } = takeExt(raw);
   return isRec(ext) && ext.style !== undefined ? { ...edge, style: ext.style } : edge;
 }
 
@@ -214,7 +221,8 @@ const idsOf = (items: unknown[]): Set<string> =>
 export function fromJsonCanvas(input: unknown, opts: { title?: string } = {}): ImportResult {
   const fail = (e: string): ImportResult => ({ ok: false, errors: [e], warnings: [] });
   if (!isRec(input)) return fail("JSON Canvas must be a JSON object");
-  const { nodes = [], edges = [], [EXT_KEY]: ext, ...topRest } = input;
+  const { ext, rest } = takeExt(input);
+  const { nodes = [], edges = [], ...topRest } = rest;
   if (!Array.isArray(nodes)) return fail("nodes: must be an array");
   if (!Array.isArray(edges)) return fail("edges: must be an array");
 

@@ -1,4 +1,4 @@
-import { isTestFile, localGraph, type CodeGraph, type CodeGraphNode } from "@codemap/core";
+import { isTestFile, localGraph, type CodeGraph, type CodeGraphNode } from "@tracer/core";
 
 export type GraphFilters = {
   hideOrphans: boolean;

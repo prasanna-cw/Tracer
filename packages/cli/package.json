@@ -1,5 +1,5 @@
 {
-  "name": "@codemap/cli",
+  "name": "@tracer/cli",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,7 +10,7 @@
     "import:canvas": "tsx src/canvas.ts import"
   },
   "dependencies": {
-    "@codemap/core": "*"
+    "@tracer/core": "*"
   },
   "devDependencies": {
     "tsx": "^4.20.0"

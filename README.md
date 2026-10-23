@@ -1,4 +1,4 @@
-# CodeMap Studio
+# Tracer
 
 Diagram canvas and code-graph prototype. It will become a VS Code extension later.
 
@@ -55,7 +55,7 @@ time        135 ms
 | Cycles | **Highlight cycles** colors import cycles |
 | Layout | center/repel/link force, link distance, node size, label zoom (live) |
 
-## Convert to and from Obsidian
+## Convert to and from JSON Canvas
 
 ```powershell
 npm run export:canvas -- samples/save-flow.diagram.json samples/save-flow.exported.canvas
@@ -84,26 +84,26 @@ Build and install it locally (it is not published, and must not be until publish
 
 ```powershell
 npm install
-npm run package                     # -> packages\extension\codemap-studio.vsix
-code --install-extension packages\extension\codemap-studio.vsix
+npm run package                     # -> packages\extension\tracer.vsix
+code --install-extension packages\extension\tracer.vsix
 ```
 
 Then, in VS Code:
 
-- open any `*.diagram.json` or `*.canvas`: it opens in the **CodeMap Diagram** editor (right-click the tab, "Reopen Editor With…" for the text);
-- Command Palette: **CodeMap: Open Graph View** (import graph of the first workspace folder), **CodeMap: Open Diagram**;
-- setting **codemap.theme**: `auto` (follows VS Code light/dark), `clean`, `obsidian`.
+- open any `*.diagram.json` or `*.canvas`: it opens in the **Tracer Flow** editor (right-click the tab, "Reopen Editor With…" for the text);
+- the **Tracer** icon in the activity bar, or the Command Palette: **Tracer: Open Graph**, **Tracer: Open Saved Flow…**;
+- setting **tracer.theme**: `auto` (match VS Code), `light`, `dark`.
 
-To uninstall: `code --uninstall-extension todo-publisher.codemap-studio-vscode`.
+To uninstall: `code --uninstall-extension todo-publisher.tracer`.
 
-Develop: open this repo in VS Code and press **F5** ("Run CodeMap extension": builds, then opens `samples/demo-repo` in an Extension Development Host). Integration tests in a real VS Code: `npm run test:vscode` (downloads VS Code, about 350 MB, on first run).
+Develop: open this repo in VS Code and press **F5** ("Run Tracer extension": builds, then opens `samples/demo-repo` in an Extension Development Host). Integration tests in a real VS Code: `npm run test:vscode` (downloads VS Code, about 350 MB, on first run).
 
 **Permissions and data handling** (details in `packages/extension/README.md`): no network access and no telemetry; activates only on its commands or when a diagram file is opened; reads the diagram you open and, for the graph, the source files, `tsconfig.json`/`package.json` and `.gitignore` of the first workspace folder; writes only the document (through VS Code) and exports you place in a save dialog; opens source files only inside the workspace.
 
 ## Samples
 
 - `samples/save-flow.diagram.json`: native diagram with a 9-step walkthrough.
-- `samples/architecture.canvas`: plain JSON Canvas. Open it in Obsidian, or import it here.
+- `samples/architecture.canvas`: plain JSON Canvas (the open format other canvas tools use), imported here.
 
 ## Layout
 

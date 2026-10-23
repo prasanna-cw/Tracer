@@ -8,7 +8,7 @@ import { runTests } from "@vscode/test-electron";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
 const realRepo = resolve(here, "../../../..");
-const scratch = join(tmpdir(), "codemap-vscode-test");
+const scratch = join(tmpdir(), "tracer-vscode-test");
 
 /**
  * test-electron launches VS Code on Windows in a way that splits arguments at spaces, so a checkout in

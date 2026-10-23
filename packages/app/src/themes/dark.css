@@ -1,0 +1,39 @@
+/* Dark: deep neutral surfaces, muted category accents, subtle dotted grid and hover glow. Tokens only. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #18181b;
+  --surface: #202024;
+  --surface-2: #28282d;
+  --hover: rgba(255, 255, 255, 0.07);
+  --active: rgba(255, 255, 255, 0.12);
+  --border: #33333a;
+  --text: #e7e7ea;
+  --muted: #9b9ba3;
+  --accent: #9d8cff;
+  --accent-text: #15131f;
+  --accent-soft: rgba(157, 140, 255, 0.16);
+  --focus: #b3a6ff;
+  --grid: #3a3a42;
+  --edge: #6f6f78;
+  --edge-active: #b3a6ff;
+  --label-bg: #26262b;
+  --group-fill: rgba(255, 255, 255, 0.02);
+  --group-border: #4a4a52;
+  --shadow: 0 8px 28px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.35);
+  --dim-opacity: 0.22;
+  --glow: 0 0 0 1px var(--c-stroke), 0 0 14px color-mix(in srgb, var(--c-stroke) 45%, transparent);
+
+  /* Graph view (the canvas reads these): folder palette, edges, cycles. */
+  --graph-1: #a99bff; --graph-2: #e3a46f; --graph-3: #6cc4d6; --graph-4: #7ccf94; --graph-5: #e3cd6b; --graph-6: #ea92ab;
+  --graph-edge: rgba(220, 221, 230, 0.15);
+  --graph-cycle: #ff6b6b;
+
+  --cat-plain-fill: #222226;    --cat-plain-stroke: #3d3d44;   --cat-plain-text: #e7e7ea;
+  --cat-layer-fill: #27233a;    --cat-layer-stroke: #6f60aa;   --cat-layer-text: #d0c6ff;
+  --cat-entity-fill: #2f2620;   --cat-entity-stroke: #a06d42;  --cat-entity-text: #f3c7a1;
+  --cat-db-fill: #1d2b30;       --cat-db-stroke: #468a9a;      --cat-db-text: #a5dde9;
+  --cat-service-fill: #1f2c25;  --cat-service-stroke: #478b5e; --cat-service-text: #ace3bd;
+  --cat-data-fill: #2d2a1c;     --cat-data-stroke: #94843a;    --cat-data-text: #eedd91;
+  --cat-note-fill: #26262a;     --cat-note-stroke: #4d4d55;    --cat-note-text: #d4d4d8;
+  --cat-warning-fill: #31201f;  --cat-warning-stroke: #a35454; --cat-warning-text: #f4b2b2;
+}

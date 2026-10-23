@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { ReactFlowProvider } from "@xyflow/react";
 import { toBlob, toSvg } from "html-to-image";
-import { toJsonCanvas, type Diagram } from "@codemap/core";
+import { toJsonCanvas, type Diagram } from "@tracer/core";
 import { DiagramCanvas } from "./canvas/DiagramCanvas";
 import { historyReducer, initHistory } from "./canvas/history";
 import type { Highlight } from "./canvas/toFlow";
@@ -15,15 +15,17 @@ import { GraphView } from "./graph/GraphView";
 const EMPTY: Diagram = { version: 1, title: "", nodes: [], edges: [] };
 const DEFAULT_ID = "save-flow.diagram.json";
 const GRAPH_HASH = "#graph";
-const THEME_KEY = "codemap.theme";
+const THEME_KEY = "tracer.theme";
 const STEP_MS = 2500;
 
 function readTheme(): Theme {
   try {
-    return localStorage.getItem(THEME_KEY) === "obsidian" ? "obsidian" : "clean";
+    const saved = localStorage.getItem(THEME_KEY);
+    if (saved === "light" || saved === "dark") return saved;
   } catch {
-    return "clean";
+    // storage blocked: fall through to the OS preference
   }
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
 const isTyping = (t: EventTarget | null): boolean =>
@@ -35,9 +37,11 @@ type Props = {
   /** web: the standalone prototype. editor: one document owned by the host (VS Code). graph: only the graph. */
   env: HostEnv;
   initialTheme?: Theme;
+  /** Use the host's own colors (VS Code theme) for the chrome. */
+  initialNative?: boolean;
 };
 
-export function App({ createHost, env, initialTheme }: Props) {
+export function App({ createHost, env, initialTheme, initialNative = false }: Props) {
   const [toasts, notify, dismiss] = useToasts();
   const host = useMemo(() => createHost(notify), [createHost, notify]);
   const web = env.kind === "web";
@@ -57,6 +61,7 @@ export function App({ createHost, env, initialTheme }: Props) {
     env.kind === "graph" || (web && location.hash === GRAPH_HASH) ? "graph" : "diagram",
   );
   const [theme, setTheme] = useState<Theme>(() => initialTheme ?? readTheme());
+  const [native, setNative] = useState(initialNative);
   const [snap, setSnap] = useState(false);
   const [minimap, setMinimap] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -165,16 +170,24 @@ export function App({ createHost, env, initialTheme }: Props) {
   }, [dirty]);
 
   // --- theme -------------------------------------------------------------------
-  useEffect(() => host.onThemeChanged?.(setTheme), [host]);
+  useEffect(
+    () =>
+      host.onThemeChanged?.((t, n) => {
+        setTheme(t);
+        setNative(n);
+      }),
+    [host],
+  );
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
+    document.documentElement.dataset.native = String(native);
     if (!web) return; // in VS Code the theme comes from VS Code and the codemap.theme setting
     try {
       localStorage.setItem(THEME_KEY, theme);
     } catch {
       // storage blocked (private mode, policy): theme just won't persist
     }
-  }, [theme, web]);
+  }, [theme, native, web]);
 
   // --- save / export -----------------------------------------------------------
   const save = useCallback(async () => {
@@ -329,7 +342,7 @@ export function App({ createHost, env, initialTheme }: Props) {
                     focusIds={focusIds}
                     snap={snap}
                     minimap={minimap}
-                    dots={theme === "obsidian"}
+                    dots={theme === "dark"}
                     onSelect={setSelectedId}
                   />
                 </ReactFlowProvider>
