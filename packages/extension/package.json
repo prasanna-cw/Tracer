@@ -18,7 +18,10 @@
     "onCommand:tracer.openGraph",
     "onCommand:tracer.openDiagram",
     "onView:tracer.home",
-    "onCustomEditor:tracer.flowEditor"
+    "onCustomEditor:tracer.flowEditor",
+    "onCommand:tracer.showFlow",
+    "onCommand:tracer.showFunctionFlow",
+    "onCommand:tracer.traceCalls"
   ],
   "contributes": {
     "viewsContainers": {
@@ -65,6 +68,24 @@
         "title": "Refresh",
         "category": "Tracer",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "tracer.showFlow",
+        "title": "Show Flow",
+        "category": "Tracer",
+        "icon": "$(type-hierarchy)"
+      },
+      {
+        "command": "tracer.showFunctionFlow",
+        "title": "Show Flow of This Function",
+        "category": "Tracer",
+        "icon": "$(symbol-method)"
+      },
+      {
+        "command": "tracer.traceCalls",
+        "title": "Trace Calls From This Function",
+        "category": "Tracer",
+        "icon": "$(references)"
       }
     ],
     "menus": {
@@ -79,6 +100,18 @@
         {
           "command": "tracer.refresh",
           "when": "false"
+        },
+        {
+          "command": "tracer.showFlow",
+          "when": "editorIsOpen"
+        },
+        {
+          "command": "tracer.showFunctionFlow",
+          "when": "editorIsOpen"
+        },
+        {
+          "command": "tracer.traceCalls",
+          "when": "editorIsOpen"
         }
       ],
       "explorer/context": [
@@ -86,6 +119,32 @@
           "command": "tracer.openGraph",
           "when": "explorerResourceIsFolder",
           "group": "navigation@90"
+        },
+        {
+          "command": "tracer.showFlow",
+          "when": "resourceExtname =~ /^\\.(c|cc|cjs|cpp|cs|cts|cxx|dart|ex|exs|go|h|hh|hpp|hxx|java|js|jsx|kt|kts|lua|mjs|mts|php|py|pyi|rb|rs|sc|scala|swift|ts|tsx|zig)$/ && !explorerResourceIsFolder",
+          "group": "navigation@90"
+        }
+      ],
+      "editor/context": [
+        {
+          "submenu": "tracer.editorMenu",
+          "when": "resourceExtname =~ /^\\.(c|cc|cjs|cpp|cs|cts|cxx|dart|ex|exs|go|h|hh|hpp|hxx|java|js|jsx|kt|kts|lua|mjs|mts|php|py|pyi|rb|rs|sc|scala|swift|ts|tsx|zig)$/",
+          "group": "navigation@90"
+        }
+      ],
+      "tracer.editorMenu": [
+        {
+          "command": "tracer.showFlow",
+          "group": "1_flow@1"
+        },
+        {
+          "command": "tracer.showFunctionFlow",
+          "group": "1_flow@2"
+        },
+        {
+          "command": "tracer.traceCalls",
+          "group": "1_flow@3"
         }
       ]
     },
@@ -121,9 +180,22 @@
           ],
           "default": "auto",
           "description": "Theme of Tracer's flow and graph views."
+        },
+        "tracer.flow.traceDepth": {
+          "type": "number",
+          "default": 4,
+          "minimum": 1,
+          "maximum": 8,
+          "description": "How many calls deep \"Trace Calls From This Function\" follows."
         }
       }
-    }
+    },
+    "submenus": [
+      {
+        "id": "tracer.editorMenu",
+        "label": "Tracer"
+      }
+    ]
   },
   "scripts": {
     "build": "tsc -p tsconfig.json && node build.mjs",

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { analyzeRepo, listSourceFiles, type AnalyzeResult } from "@tracer/core/analyzer";
-import { Engine, type FileFacts, type WasmLoader } from "@tracer/core/engine";
+import { Engine, type FileFacts, type IndexedFile, type WasmLoader } from "@tracer/core/engine";
 import { nodeFileSystem } from "./nodeFileSystem";
 
 /** WASM from a folder (the extension ships them in dist/grammars), or straight from node_modules. */
@@ -45,4 +45,35 @@ export async function analyzeWorkspace(
   const parseMs = Math.round(performance.now() - started);
   progress({ phase: "linking", done: others.length, total: others.length });
   return { ...analyzeRepo(nodeFileSystem, root, { facts }), parseMs };
+}
+
+const SKIP_DIRS = /(^|\/)(node_modules|dist|build|\.git|coverage|target|vendor|__pycache__)(\/|$)/;
+
+/**
+ * tree-sitter facts for every supported file under `root` (TypeScript and JavaScript included), keyed by
+ * path relative to the root, with the service (manifest folder) each file belongs to. Feeds the call
+ * resolver behind Show Flow and Trace Calls.
+ */
+export async function indexWorkspace(
+  root: string,
+  opts: { wasmDir?: string; onProgress?: (p: Progress) => void } = {},
+): Promise<IndexedFile[]> {
+  const progress = opts.onProgress ?? (() => undefined);
+  const { files, others, services } = listSourceFiles(nodeFileSystem, root);
+  const all = [...files, ...others].filter((abs) => !SKIP_DIRS.test(abs.slice(root.length + 1)));
+  const serviceOf = (rel: string): string =>
+    services.reduce((best, s) => (s.path.length > best.length && (rel === s.path || rel.startsWith(`${s.path}/`)) ? s.path : best), "");
+  const engine = await Engine.create(wasmLoader(opts.wasmDir));
+  const out: IndexedFile[] = [];
+  for (let i = 0; i < all.length; i++) {
+    const abs = all[i] as string;
+    const text = nodeFileSystem.readFile(abs);
+    if (text !== undefined && text.length < 1_500_000) {
+      const rel = abs.slice(root.length + 1);
+      const facts = await engine.facts(abs, text);
+      if (facts) out.push({ path: rel, facts, service: serviceOf(rel) });
+    }
+    if (i % 100 === 0) progress({ phase: "parsing", done: i, total: all.length });
+  }
+  return out;
 }

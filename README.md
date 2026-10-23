@@ -90,9 +90,17 @@ code --install-extension packages\extension\tracer.vsix
 
 Then, in VS Code:
 
+- **Right-click in any code file → Tracer** (works for TypeScript, JavaScript, Java, Kotlin, Python, Go, C#, Rust, C, C++, PHP, Ruby, Swift, Scala, Dart, Lua):
+  - **Show Flow**: with nothing selected, an overview of the file (its functions, what calls what, what it reaches in other files); with lines selected, the control flow of just those lines.
+  - **Show Flow of This Function**: the flowchart of the function under the cursor: `if`/`else`, loops (with their back-edge), `switch`/`match`, `try`/`catch`/`finally`, returns and throws. A call that resolves to a function in your workspace links to its definition (click the card, **Open source**).
+  - **Trace Calls From This Function**: the call tree across files (Controller → Service → Repository), coloured by role.
+  - The diagram opens **beside** your code and is editable; **Save** writes a `.diagram.json` you can keep and annotate.
+  - Also in the explorer: right-click a file for **Show Flow**, a folder for **Open Graph**.
 - open any `*.diagram.json` or `*.canvas`: it opens in the **Tracer Flow** editor (right-click the tab, "Reopen Editor With…" for the text);
 - the **Tracer** icon in the activity bar, or the Command Palette: **Tracer: Open Graph**, **Tracer: Open Saved Flow…**;
-- setting **tracer.theme**: `auto` (match VS Code), `light`, `dark`.
+- setting **tracer.theme**: `auto` (match VS Code), `light`, `dark`; **tracer.flow.traceDepth** (1-8, default 4).
+
+The same diagrams from a terminal: `npm run flow -- --root <repo> --file <file> [--line N [--end M] | --trace] --out x.diagram.json`.
 
 To uninstall: `code --uninstall-extension todo-publisher.tracer`.
 

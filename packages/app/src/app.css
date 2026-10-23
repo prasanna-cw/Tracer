@@ -208,8 +208,16 @@ button, select, textarea, input { font: inherit; color: inherit; }
   border: 1px solid var(--accent); border-radius: 6px; background: var(--surface); color: var(--text); font-size: 13px;
 }
 
-.cm-start { border-radius: 999px; justify-content: center; align-items: center; text-align: center; padding: 6px 18px; }
+.cm-start { border-radius: 999px; justify-content: center; align-items: center; text-align: center; padding: 6px 18px; gap: 1px; }
 .cm-start .cm-title { font-size: 15px; max-width: 100%; }
+.cm-start .cm-subtitle { max-width: 100%; }
+.cm-decision { border-style: dashed; border-width: 1.5px; border-radius: 14px; justify-content: center; gap: 1px; }
+.cm-decision .cm-title { font-family: var(--mono); font-size: 12.5px; font-weight: 500; }
+.cm-decision .cm-kicker, .cm-end .cm-kicker { opacity: 0.75; font-weight: 600; }
+.cm-end { border-radius: 999px; justify-content: center; align-items: center; text-align: center; gap: 0; padding: 6px 18px; }
+.cm-end .cm-title { font-family: var(--mono); font-size: 12.5px; font-weight: 500; max-width: 100%; }
+.cm-end .cm-rows { padding-left: 0; list-style: none; margin: 2px 0 0; max-width: 100%; }
+.cm-end .cm-rows li { font-size: 11px; opacity: 0.8; text-align: center; }
 .react-flow__node-start { border-radius: 999px; }
 .cm-note { border-left: 4px solid var(--c-stroke); }
 .cm-text { background: var(--c-fill); }

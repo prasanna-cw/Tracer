@@ -1,6 +1,9 @@
 import * as vscode from "vscode";
 import { FlowEditorProvider, type Status } from "./diagramEditor";
 import { openGraphView } from "./graphPanel";
+import { FlowCommands } from "./flowCommands";
+import { FlowPanel } from "./flowPanel";
+import { FlowService } from "./flowService";
 import { SidebarProvider } from "./sidebar";
 import { findDiagrams } from "./workspace";
 
@@ -21,6 +24,16 @@ export function activate(context: vscode.ExtensionContext) {
       openGraphView(context, output, target instanceof vscode.Uri ? target : undefined),
     ),
     vscode.commands.registerCommand("tracer.openDiagram", openDiagramPicker),
+  );
+
+  // Show Flow: a diagram of a file, a function or a selection, beside the code.
+  const flowService = new FlowService(context, output);
+  const flows = new FlowCommands(flowService, new FlowPanel(context, output, statuses));
+  context.subscriptions.push(
+    flowService,
+    vscode.commands.registerCommand("tracer.showFlow", (resource?: unknown) => flows.showFlow(resource)),
+    vscode.commands.registerCommand("tracer.showFunctionFlow", () => flows.showFunctionFlow()),
+    vscode.commands.registerCommand("tracer.traceCalls", () => flows.traceCalls()),
   );
 
   const sidebar = new SidebarProvider();

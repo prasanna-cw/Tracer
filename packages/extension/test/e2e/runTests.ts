@@ -1,4 +1,4 @@
-// Downloads a VS Code build (cached in the OS temp folder), opens samples/demo-repo with only this
+// Downloads a VS Code build (cached in the OS temp folder), opens samples/polyglot with only this
 // extension enabled, and runs dist/test/suite.js inside it. Run with: npm run test:vscode
 import { existsSync, mkdirSync, realpathSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -30,6 +30,9 @@ function spaceFreeRepo(): string {
 delete process.env.ELECTRON_RUN_AS_NODE;
 
 const repo = spaceFreeRepo();
+
+// A fresh profile every run: a restored window (earlier workspace, reopened files) would change what the tests see.
+rmSync(join(scratch, "user-data"), { recursive: true, force: true });
 const extensionDevelopmentPath = join(repo, "packages", "extension");
 
 runTests({
@@ -37,7 +40,7 @@ runTests({
   extensionTestsPath: join(extensionDevelopmentPath, "dist", "test", "suite.js"),
   cachePath: scratch,
   launchArgs: [
-    join(repo, "samples", "demo-repo"),
+    join(repo, "samples", "polyglot"),
     "--disable-extensions",
     "--disable-workspace-trust",
     "--skip-welcome",

@@ -49,7 +49,7 @@ export function App({ createHost, env, initialTheme, initialNative = false }: Pr
   const hostOwnsDocument = env.kind === "editor";
 
   const [diagrams, setDiagrams] = useState<{ id: string; title: string }[]>([]);
-  const [currentId, setCurrentId] = useState<string | null>(env.kind === "editor" ? env.documentId : null);
+  const [currentId, setCurrentId] = useState<string | null>(env.kind === "editor" || env.kind === "flow" ? env.documentId : null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadSeq, setLoadSeq] = useState(0); // remounts the canvas per load so it fits the new diagram
   const [h, dispatch] = useReducer(historyReducer, EMPTY, initHistory);

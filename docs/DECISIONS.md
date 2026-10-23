@@ -185,6 +185,25 @@ Each entry: what, why, alternative considered.
 - **Activity bar:** a Tracer view container (monochrome glyph `media/tracer.svg`) with a sidebar: Open Graph, Open a saved flow, and the workspace's saved flows (refreshes on file create/delete). Extension icon `media/icon.png` (rendered from SVG).
 - **No AI:** decided with the Founder: Tracer uses no LLM or AI service. Flows are derived from the code's structure (and can be edited by hand).
 
+## D30. Show Flow: structure only, generic over languages
+
+- **What:** one control-flow builder (`engine/flow.ts`) reads every language through its spec (`engine/languages.ts`: which node types are ifs, loops, switches, tries, returns, throws, calls). Statements without calls are merged ("3 statements"); statements with calls get a card; a resolved call links the card to the callee's definition. Diagrams are capped at 80 nodes with a notice. `elif`/`elsif`, Ruby `raise` and Go `panic` are treated as the constructs they are.
+- **No AI, so no prose:** the cards say what the code does (`repo.save(order)`, `qty <= 0`), never why. The diagram is editable and can be saved, so a human adds the why.
+- **Known limits:** control flow is syntactic. It does not know which branch runs, does not follow lambdas, callbacks or reflection, and Ruby-style `each do … end` blocks are steps, not loops. Dart is partial (conditions of `if` are not always extracted). Calls resolve by name and receiver (below), not by types.
+
+## D31. Call resolution is heuristic and says so by staying silent
+
+- **What:** a call `a.b.save()` resolves to a workspace function when exactly one candidate fits: name, then receiver (`repo` matches a container whose name contains "repo"), then same file, then same service. Ambiguous matches and very common names (`get`, `log`, `add`, …) on an unknown receiver stay unresolved rather than guessing. Constructors (`new Order`) resolve to the type.
+- **Why:** a wrong link is worse than no link. Unresolved calls are still listed as plain rows.
+- **Alternative:** real type resolution per language (language servers). Possible later through VS Code's own providers; out of scope for a local, no-dependency tool.
+
+## D32. Layout with dagre, panel reuse, index lifecycle
+
+- **Layout:** `layoutFlow` (dagre) lays out every generated diagram in layers: cycles are broken for us, long edges get reserved space, and loops' back-edges are drawn on the left. A hand-written structured layout was tried on paper and rejected: loops, switches and merged exits need a general algorithm anyway.
+- **Panel:** one Tracer flow panel opens beside the code and is reused (its content replaced), so repeated use does not fill the editor with tabs. Edits live in memory; **Save** writes a `.diagram.json` and opens it in the flow editor.
+- **Index:** per workspace root, every function and type are indexed once in a worker thread, then kept fresh by a file watcher (changed files re-parsed one at a time). The file being flowed is always parsed from the editor's text, so unsaved edits are reflected.
+- **Tests inside VS Code:** each run uses a fresh profile (a restored window from an earlier run re-ran the suite), the workspace is `samples/polyglot`, and URIs are built from the workspace folder (the window is opened through a junction while `__dirname` is the real path).
+
 ## Phase 3 seams (not built)
 
 - **Graph refresh:** re-run the analysis on file changes (debounced `FileSystemWatcher` on source files) and push the new graph as an event; today the command re-analyzes on each run.

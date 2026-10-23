@@ -19,7 +19,7 @@ function analyze(
   return new Promise((resolve, reject) => {
     const dist = vscode.Uri.joinPath(extensionUri, "dist");
     const worker = new Worker(vscode.Uri.joinPath(dist, "analyzerWorker.js").fsPath, {
-      workerData: { root, wasmDir: vscode.Uri.joinPath(dist, "grammars").fsPath },
+      workerData: { mode: "graph", root, wasmDir: vscode.Uri.joinPath(dist, "grammars").fsPath },
     });
     const cancel = token.onCancellationRequested(() => {
       void worker.terminate();
@@ -35,6 +35,7 @@ function analyze(
         } else if (m.phase === "linking") progress.report({ message: "linking imports…" });
         return;
       }
+      if (m.kind !== "done") return; // "indexed" belongs to the flow index worker
       cancel.dispose();
       void worker.terminate();
       if (m.ok) resolve({ graph: codeGraphSchema.parse(m.graph), ms: m.ms, parseMs: m.parseMs });

@@ -19,7 +19,8 @@
     "import:canvas": "npm run import:canvas -w @tracer/cli --",
     "analyze:demo": "npm run analyze -- --root samples/demo-repo --out samples/demo-graph.json",
     "package": "npm run package -w packages/extension",
-    "test:vscode": "npm run test:vscode -w packages/extension"
+    "test:vscode": "npm run test:vscode -w packages/extension",
+    "flow": "npm run flow -w @tracer/cli --"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

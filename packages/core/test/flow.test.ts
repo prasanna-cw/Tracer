@@ -139,7 +139,7 @@ describe("calls followed across files (samples/polyglot)", () => {
     if (!r.ok) throw new Error(r.reason);
     const step = r.diagram.nodes.find((n) => n.title?.includes("service.place"));
     expect(step?.source).toEqual({ path: SERVICE, line: 13 });
-    expect(step?.rows?.[0]?.text).toBe(`→ OrderService.place  ${SERVICE}:13`);
+    expect(step?.rows?.[0]?.text).toBe("→ OrderService.place  OrderService.java:13");
     expect(step?.kind).toBe("end"); // `return service.place(...)` is a return that links to its callee
     expect(r.diagram.nodes.some((n) => n.kind === "decision" && n.subtitle === "if" && n.title === "qty <= 0")).toBe(true);
   });

@@ -1,0 +1,229 @@
+{
+  "version": 1,
+  "title": "OrderService.place",
+  "nodes": [
+    {
+      "id": "n1",
+      "type": "text",
+      "x": 85,
+      "y": 0,
+      "width": 272,
+      "kind": "start",
+      "category": "layer",
+      "title": "OrderService.place",
+      "subtitle": "OrderService.java:13",
+      "height": 56,
+      "source": {
+        "path": "orders-java/src/main/java/com/acme/orders/service/OrderService.java",
+        "line": 13
+      }
+    },
+    {
+      "id": "n2",
+      "type": "text",
+      "x": 85,
+      "y": 120,
+      "width": 272,
+      "kind": "layer",
+      "category": "service",
+      "title": "Order order = new Order(sku, qty)",
+      "rows": [
+        {
+          "text": "→ Order  Order.java:3"
+        }
+      ],
+      "height": 62,
+      "source": {
+        "path": "orders-java/src/main/java/com/acme/orders/model/Order.java",
+        "line": 3
+      }
+    },
+    {
+      "id": "n3",
+      "type": "text",
+      "x": 85,
+      "y": 246,
+      "width": 272,
+      "kind": "decision",
+      "category": "data",
+      "title": "for (int attempt = 0; attempt < 3; attempt++)",
+      "subtitle": "loop",
+      "height": 60,
+      "source": {
+        "path": "orders-java/src/main/java/com/acme/orders/service/OrderService.java",
+        "line": 15
+      }
+    },
+    {
+      "id": "n4",
+      "type": "text",
+      "x": 405,
+      "y": 388,
+      "width": 272,
+      "kind": "decision",
+      "category": "warning",
+      "title": "try",
+      "subtitle": "try",
+      "height": 60,
+      "source": {
+        "path": "orders-java/src/main/java/com/acme/orders/service/OrderService.java",
+        "line": 16
+      }
+    },
+    {
+      "id": "n5",
+      "type": "text",
+      "x": 565,
+      "y": 530,
+      "width": 272,
+      "kind": "layer",
+      "category": "service",
+      "title": "repo.save(order)",
+      "rows": [
+        {
+          "text": "→ OrderRepository.save  OrderRepository.java:6"
+        }
+      ],
+      "height": 62,
+      "source": {
+        "path": "orders-java/src/main/java/com/acme/orders/repo/OrderRepository.java",
+        "line": 6
+      }
+    },
+    {
+      "id": "n6",
+      "type": "text",
+      "x": 565,
+      "y": 656,
+      "width": 272,
+      "kind": "end",
+      "category": "note",
+      "title": "order.id()",
+      "subtitle": "return",
+      "rows": [
+        {
+          "text": "→ Order.id  Order.java:4"
+        }
+      ],
+      "height": 66,
+      "source": {
+        "path": "orders-java/src/main/java/com/acme/orders/model/Order.java",
+        "line": 4
+      }
+    },
+    {
+      "id": "n7",
+      "type": "text",
+      "x": 245,
+      "y": 531,
+      "width": 272,
+      "kind": "decision",
+      "category": "warning",
+      "title": "catch (RuntimeException e)",
+      "subtitle": "catch",
+      "height": 60,
+      "source": {
+        "path": "orders-java/src/main/java/com/acme/orders/service/OrderService.java",
+        "line": 19
+      }
+    },
+    {
+      "id": "n8",
+      "type": "text",
+      "x": 0,
+      "y": 658,
+      "width": 272,
+      "kind": "layer",
+      "category": "service",
+      "title": "repo.rollback()",
+      "rows": [
+        {
+          "text": "→ OrderRepository.rollback  OrderRepository.java:7"
+        }
+      ],
+      "height": 62,
+      "source": {
+        "path": "orders-java/src/main/java/com/acme/orders/repo/OrderRepository.java",
+        "line": 7
+      }
+    },
+    {
+      "id": "n9",
+      "type": "text",
+      "x": 85,
+      "y": 394,
+      "width": 272,
+      "kind": "end",
+      "category": "note",
+      "title": "null",
+      "subtitle": "return",
+      "height": 48,
+      "source": {
+        "path": "orders-java/src/main/java/com/acme/orders/service/OrderService.java",
+        "line": 23
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "fromNode": "n1",
+      "toNode": "n2"
+    },
+    {
+      "id": "e2",
+      "fromNode": "n2",
+      "toNode": "n3"
+    },
+    {
+      "id": "e3",
+      "fromNode": "n3",
+      "toNode": "n4",
+      "label": "each"
+    },
+    {
+      "id": "e4",
+      "fromNode": "n4",
+      "toNode": "n5"
+    },
+    {
+      "id": "e5",
+      "fromNode": "n5",
+      "toNode": "n6"
+    },
+    {
+      "id": "e6",
+      "fromNode": "n4",
+      "toNode": "n7",
+      "style": "dashed",
+      "label": "error"
+    },
+    {
+      "id": "e7",
+      "fromNode": "n7",
+      "toNode": "n8"
+    },
+    {
+      "id": "e8",
+      "fromNode": "n8",
+      "toNode": "n3",
+      "label": "next",
+      "style": "dashed",
+      "fromSide": "left",
+      "toSide": "left"
+    },
+    {
+      "id": "e9",
+      "fromNode": "n3",
+      "toNode": "n9",
+      "label": "done"
+    }
+  ],
+  "meta": {
+    "generated": {
+      "by": "tracer",
+      "path": "orders-java/src/main/java/com/acme/orders/service/OrderService.java",
+      "scope": "function place"
+    }
+  }
+}

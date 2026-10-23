@@ -30,7 +30,7 @@ async function boot(el: HTMLElement): Promise<void> {
     const host = new VSCodeHost();
     const init = await host.call("init", {});
     const env: HostEnv =
-      init.mode === "editor" && init.documentId ? { kind: "editor", documentId: init.documentId } : { kind: "graph" };
+      (init.mode === "editor" || init.mode === "flow") && init.documentId ? { kind: init.mode, documentId: init.documentId } : { kind: "graph" };
     mount(el, () => host, env, init.theme, init.native);
     return;
   }

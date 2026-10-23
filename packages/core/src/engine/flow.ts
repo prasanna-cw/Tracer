@@ -210,7 +210,7 @@ class Builder {
       return t ? [{ c, t }] : [];
     });
     const rows = [
-      ...resolved.map(({ t }) => `→ ${t.container ? `${t.container}.` : ""}${t.name}  ${t.path}:${t.line}`),
+      ...resolved.map(({ t }) => `→ ${t.container ? `${t.container}.` : ""}${t.name}  ${t.path.slice(t.path.lastIndexOf("/") + 1)}:${t.line}`),
       ...calls.filter((c) => !resolved.some((r) => r.c === c)).map((c) => `${c}()`),
     ].slice(0, MAX_ROWS);
     return { calls, resolved, rows };
@@ -274,7 +274,7 @@ class Builder {
     const b = this.branches(n);
     const [yes, no] = unless ? ["no", "yes"] : ["yes", "no"];
     const thenExits = this.walk(b.then, [{ id, label: yes }]);
-    const elseExits = b.else ? this.walk(b.else, [{ id, label: no }]) : [{ id, label: no, side: "right" as Side }];
+    const elseExits = b.else ? this.walk(b.else, [{ id, label: no }]) : [{ id, label: no }];
     return [...thenExits, ...elseExits];
   }
 
@@ -285,7 +285,7 @@ class Builder {
     for (const e of exits) {
       this.edges.push({ id: `e${this.edges.length + 1}`, fromNode: e.id, toNode: id, label: e.label ?? "next", style: "dashed", fromSide: "left", toSide: "left" });
     }
-    return [{ id, label: "done", side: "right" }];
+    return [{ id, label: "done" }];
   }
 
   private caseNodes(n: Node): Node[] {

@@ -1,0 +1,130 @@
+{
+  "version": 1,
+  "title": "Calls from OrderController.place",
+  "nodes": [
+    {
+      "id": "f1",
+      "type": "text",
+      "x": 320,
+      "y": 0,
+      "width": 272,
+      "height": 84,
+      "kind": "start",
+      "category": "layer",
+      "title": "OrderController.place",
+      "subtitle": "OrderController.java:14",
+      "rows": [
+        {
+          "text": "new IllegalArgumentException()",
+          "muted": true
+        }
+      ],
+      "source": {
+        "path": "orders-java/src/main/java/com/acme/orders/web/OrderController.java",
+        "line": 14
+      }
+    },
+    {
+      "id": "f2",
+      "type": "text",
+      "x": 320,
+      "y": 148,
+      "width": 272,
+      "height": 84,
+      "kind": "layer",
+      "category": "service",
+      "title": "OrderService.place",
+      "subtitle": "OrderService.java:13",
+      "rows": [
+        {
+          "text": "new Order()",
+          "muted": true
+        }
+      ],
+      "source": {
+        "path": "orders-java/src/main/java/com/acme/orders/service/OrderService.java",
+        "line": 13
+      }
+    },
+    {
+      "id": "f3",
+      "type": "text",
+      "x": 640,
+      "y": 296,
+      "width": 272,
+      "height": 66,
+      "kind": "layer",
+      "category": "db",
+      "title": "OrderRepository.save",
+      "subtitle": "OrderRepository.java:6",
+      "rows": [],
+      "source": {
+        "path": "orders-java/src/main/java/com/acme/orders/repo/OrderRepository.java",
+        "line": 6
+      }
+    },
+    {
+      "id": "f4",
+      "type": "text",
+      "x": 320,
+      "y": 296,
+      "width": 272,
+      "height": 66,
+      "kind": "layer",
+      "category": "note",
+      "title": "Order.id",
+      "subtitle": "Order.java:4",
+      "rows": [],
+      "source": {
+        "path": "orders-java/src/main/java/com/acme/orders/model/Order.java",
+        "line": 4
+      }
+    },
+    {
+      "id": "f5",
+      "type": "text",
+      "x": 0,
+      "y": 296,
+      "width": 272,
+      "height": 66,
+      "kind": "layer",
+      "category": "db",
+      "title": "OrderRepository.rollback",
+      "subtitle": "OrderRepository.java:7",
+      "rows": [],
+      "source": {
+        "path": "orders-java/src/main/java/com/acme/orders/repo/OrderRepository.java",
+        "line": 7
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "fromNode": "f1",
+      "toNode": "f2"
+    },
+    {
+      "id": "e2",
+      "fromNode": "f2",
+      "toNode": "f3"
+    },
+    {
+      "id": "e3",
+      "fromNode": "f2",
+      "toNode": "f4"
+    },
+    {
+      "id": "e4",
+      "fromNode": "f2",
+      "toNode": "f5"
+    }
+  ],
+  "meta": {
+    "generated": {
+      "by": "tracer",
+      "path": "orders-java/src/main/java/com/acme/orders/web/OrderController.java",
+      "scope": "trace depth 4"
+    }
+  }
+}

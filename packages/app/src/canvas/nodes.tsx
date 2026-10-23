@@ -107,10 +107,32 @@ function Rows({ node }: { node: DiagramNode }) {
 
 type P = NodeProps<FlowNode>;
 
+/** A branch or loop header of a generated flow: `subtitle` is the keyword (if, loop, switch, try, catch). */
+const DecisionNode = memo(function DecisionNode({ data }: P) {
+  return (
+    <Frame node={data} variant="decision">
+      <div className="cm-kicker">{data.subtitle}</div>
+      <div className="cm-title">{data.title}</div>
+    </Frame>
+  );
+});
+
+/** A return or throw: the flow stops here. */
+const EndNode = memo(function EndNode({ data }: P) {
+  return (
+    <Frame node={data} variant="end">
+      <div className="cm-kicker">{data.subtitle}</div>
+      <div className="cm-title">{data.title}</div>
+      <Rows node={data} />
+    </Frame>
+  );
+});
+
 const StartNode = memo(function StartNode({ data }: P) {
   return (
     <Frame node={data} variant="start">
       <div className="cm-title">{data.title ?? data.text ?? "Start"}</div>
+      {data.subtitle && <div className="cm-subtitle">{data.subtitle}</div>}
     </Frame>
   );
 });
@@ -224,6 +246,8 @@ const GroupNode = memo(function GroupNode({ data }: P) {
 
 export const nodeTypes: NodeTypes = {
   start: StartNode,
+  decision: DecisionNode,
+  end: EndNode,
   layer: LayerNode,
   entity: EntityNode,
   data: TableNode,
