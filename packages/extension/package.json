@@ -80,6 +80,13 @@
           "command": "tracer.refresh",
           "when": "false"
         }
+      ],
+      "explorer/context": [
+        {
+          "command": "tracer.openGraph",
+          "when": "explorerResourceIsFolder",
+          "group": "navigation@90"
+        }
       ]
     },
     "customEditors": [

@@ -1,8 +1,11 @@
 import ts from "typescript";
 import { cycleEdgeKeys, findCycles } from "../graph/algorithms";
 import type { CodeGraph, CodeGraphEdge, CodeGraphNode } from "../graph/types";
+import type { FileFacts } from "../engine/facts";
+import { languageForPath } from "../engine/languages";
 import { joinPath, type FileSystemHost } from "./fileSystem";
 import { parseGitignore, type IgnoreMatcher } from "./gitignore";
+import { linkFacts, type FactsFile, type Service } from "./linkFacts";
 
 const SOURCE_FILE = /\.(ts|tsx|js|jsx|mjs|cjs|mts|cts)$/i;
 const DECLARATION_FILE = /\.d\.[cm]?ts$/i;
@@ -14,17 +17,37 @@ const cmp = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
 export type AnalyzeResult = { graph: CodeGraph; cycleEdges: number };
 
+export type AnalyzeOptions = {
+  /**
+   * tree-sitter facts for non-TypeScript files, by absolute path (see @tracer/core/engine). The host computes
+   * them (possibly on several threads) and passes them in; files of other languages without facts are left out.
+   */
+  facts?: ReadonlyMap<string, FileFacts>;
+};
+
+// Build manifests: a folder holding one is a project / service.
+const MANIFESTS: Record<string, string> = {
+  "package.json": "npm", "pom.xml": "maven", "build.gradle": "gradle", "build.gradle.kts": "gradle", "settings.gradle": "gradle",
+  "go.mod": "go", "Cargo.toml": "cargo", "pyproject.toml": "python", "setup.py": "python", "requirements.txt": "python", "Pipfile": "python",
+  "composer.json": "composer", "Gemfile": "ruby", "Package.swift": "swift", "pubspec.yaml": "dart", "build.sbt": "sbt", "CMakeLists.txt": "cmake",
+};
+const manifestKind = (name: string): string | undefined => MANIFESTS[name] ?? (/\.(csproj|fsproj|vbproj)$/i.test(name) ? "dotnet" : undefined);
+const tsLang = (path: string): string => (/\.(m|c)?tsx?$/i.test(path) ? "typescript" : "javascript");
+
 /**
  * Builds the import graph of the repo at `root` (absolute, forward slashes). Never throws on bad input
  * files: syntax errors and an unreadable tsconfig become warnings in the summary.
  */
-export function analyzeRepo(fs: FileSystemHost, root: string): AnalyzeResult {
+export function analyzeRepo(fs: FileSystemHost, root: string, opts: AnalyzeOptions = {}): AnalyzeResult {
   root = root.replace(/\/+$/, "");
   const warnings: string[] = [];
   const rel = (abs: string): string => abs.slice(root.length + 1);
 
   const ignore = gitignore(fs, root, warnings);
-  const { files, packages } = walk(fs, root, ignore);
+  const { files, others, services } = walk(fs, root, ignore);
+  const packages = services.filter((s) => s.path).map((s) => s.path);
+  const serviceOf = (relPath: string): string =>
+    services.reduce((best, s) => (s.path.length > best.length && (relPath === s.path || relPath.startsWith(`${s.path}/`)) ? s.path : best), "");
 
   // Each file resolves against its nearest tsconfig.json (per-package `paths`/`extends` in a monorepo),
   // falling back to defaults when there is none up to the root. Lookups and parsed configs are cached.
@@ -113,15 +136,34 @@ export function analyzeRepo(fs: FileSystemHost, root: string): AnalyzeResult {
     }
   }
 
+  // Other languages: tree-sitter facts, linked by name and by path.
+  const factsFiles: FactsFile[] = others.flatMap((abs) => {
+    const facts = opts.facts?.get(abs);
+    return facts ? [{ abs, rel: rel(abs), facts, service: serviceOf(rel(abs)) }] : [];
+  });
+  linkFacts(fs, root, factsFiles, services, {
+    edge: (from, toRel) => {
+      if (toRel !== from.rel) edges.set(`${from.rel}\u0000${toRel}`, { source: from.rel, target: toRel });
+    },
+    unresolved: (from, specifier) => {
+      unresolvedCount++;
+      if (unresolved.length < MAX_UNRESOLVED_LISTED) unresolved.push({ from: from.rel, specifier });
+    },
+    external: () => void externalCount++,
+  });
+
   const edgeList = [...edges.values()].sort((a, b) => cmp(a.source, b.source) || cmp(a.target, b.target));
-  const nodes: CodeGraphNode[] = [...parsed]
-    .map(([abs, { loc }]) => {
-      const path = rel(abs);
-      const slash = path.lastIndexOf("/");
-      const dot = path.lastIndexOf(".");
-      return { id: path, path, folder: slash < 0 ? "." : path.slice(0, slash), ext: path.slice(dot + 1), loc, inDegree: 0, outDegree: 0 };
-    })
-    .sort((a, b) => cmp(a.path, b.path));
+  const node = (path: string, loc: number, lang: string): CodeGraphNode => {
+    const slash = path.lastIndexOf("/");
+    const dot = path.lastIndexOf(".");
+    return { id: path, path, folder: slash < 0 ? "." : path.slice(0, slash), ext: path.slice(dot + 1), loc, inDegree: 0, outDegree: 0, lang, service: serviceOf(path) };
+  };
+  const nodes: CodeGraphNode[] = [
+    ...[...parsed].map(([abs, { loc }]) => node(rel(abs), loc, tsLang(abs))),
+    ...factsFiles.map((f) => node(f.rel, f.facts.loc, f.facts.lang)),
+  ].sort((a, b) => cmp(a.path, b.path));
+  const languages: Record<string, number> = {};
+  for (const n of nodes) if (n.lang) languages[n.lang] = (languages[n.lang] ?? 0) + 1;
   const byId = new Map(nodes.map((n) => [n.id, n]));
   for (const e of edgeList) {
     const [s, t] = [byId.get(e.source), byId.get(e.target)];
@@ -138,16 +180,18 @@ export function analyzeRepo(fs: FileSystemHost, root: string): AnalyzeResult {
       version: 1,
       root: root.slice(root.lastIndexOf("/") + 1),
       packages,
+      services: services.map((s) => ({ path: s.path, kind: s.kind })),
       nodes,
       edges: edgeList,
       summary: {
         fileCount: nodes.length,
-        skippedCount: files.length - nodes.length,
+        skippedCount: files.length - parsed.size, // TypeScript/JavaScript files with syntax errors
         edgeCount: edgeList.length,
         unresolvedCount,
         externalCount,
         assetCount,
         cycleCount: cycles.length,
+        languages,
         unresolved,
         warnings,
       },
@@ -168,24 +212,33 @@ function resolvePath(fromFile: string, spec: string): string {
 
 const dirname = (p: string): string => p.slice(0, p.lastIndexOf("/"));
 
-/** Source files to analyze, and the folders below the root that hold a package.json (monorepo packages). */
-function walk(fs: FileSystemHost, root: string, ignore: IgnoreMatcher): { files: string[]; packages: string[] } {
+/**
+ * TypeScript/JavaScript files (TypeScript resolver), files of other supported languages (tree-sitter), and
+ * the folders holding a build manifest (services; "" is the root).
+ */
+export function walk(fs: FileSystemHost, root: string, ignore: IgnoreMatcher): { files: string[]; others: string[]; services: Service[] } {
   const out: string[] = [];
-  const packages: string[] = [];
+  const others: string[] = [];
+  const services: Service[] = [];
   const visit = (dir: string, relDir: string) => {
     const entries = fs.readDirectory(dir).sort((a, b) => cmp(a.name, b.name));
-    if (relDir && entries.some((e) => !e.isDirectory && e.name === "package.json")) packages.push(relDir);
+    const kind = entries.flatMap((e) => (e.isDirectory ? [] : [manifestKind(e.name)])).find(Boolean);
+    if (kind) services.push({ path: relDir, kind });
     for (const e of entries) {
       const relPath = relDir ? `${relDir}/${e.name}` : e.name;
       if (e.isDirectory) {
         if (!ALWAYS_IGNORED.has(e.name) && !ignore(relPath, true)) visit(joinPath(dir, e.name), relPath);
-      } else if (SOURCE_FILE.test(e.name) && !DECLARATION_FILE.test(e.name) && !ignore(relPath, false)) {
-        out.push(joinPath(dir, e.name));
+      } else if (ignore(relPath, false)) {
+        continue;
+      } else if (SOURCE_FILE.test(e.name)) {
+        if (!DECLARATION_FILE.test(e.name)) out.push(joinPath(dir, e.name));
+      } else if (languageForPath(e.name)) {
+        others.push(joinPath(dir, e.name));
       }
     }
   };
   visit(root, "");
-  return { files: out, packages };
+  return { files: out, others, services };
 }
 
 function gitignore(fs: FileSystemHost, root: string, warnings: string[]): IgnoreMatcher {
@@ -283,4 +336,10 @@ function aliasMatcher(key: string): (spec: string) => boolean {
   const prefix = key.slice(0, star);
   const suffix = key.slice(star + 1);
   return (spec) => spec.startsWith(prefix) && spec.endsWith(suffix) && spec.length >= prefix.length + suffix.length;
+}
+
+/** The files `analyzeRepo` would look at, so a host can compute tree-sitter facts for `others` first. */
+export function listSourceFiles(fs: FileSystemHost, root: string): { files: string[]; others: string[]; services: Service[] } {
+  root = root.replace(/\/+$/, "");
+  return walk(fs, root, gitignore(fs, root, []));
 }

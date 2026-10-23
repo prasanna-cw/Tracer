@@ -1,25 +1,44 @@
 import { Worker } from "node:worker_threads";
 import * as vscode from "vscode";
-import type { CodeGraph, CodeGraphSummary } from "@tracer/core";
+import { codeGraphSchema, type CodeGraph, type CodeGraphSummary } from "@tracer/core";
+import type { WorkerMessage } from "./analyzerWorker";
 import { serve } from "./rpc";
 import { currentTheme, onThemeChange } from "./theme";
 import { webviewHtml, webviewOptions } from "./webview";
 import { exportFile, listDiagrams, openSource } from "./workspace";
 
-type WorkerReply = { ok: true; graph: CodeGraph; ms: number } | { ok: false; error: string };
+type Reply = WorkerMessage;
 
-function analyze(extensionUri: vscode.Uri, root: string, token: vscode.CancellationToken): Promise<{ graph: CodeGraph; ms: number }> {
+/** Runs the analysis in a worker thread; progress messages drive the notification. */
+function analyze(
+  extensionUri: vscode.Uri,
+  root: string,
+  progress: vscode.Progress<{ message?: string; increment?: number }>,
+  token: vscode.CancellationToken,
+): Promise<{ graph: CodeGraph; ms: number; parseMs: number }> {
   return new Promise((resolve, reject) => {
-    const worker = new Worker(vscode.Uri.joinPath(extensionUri, "dist", "analyzerWorker.js").fsPath, { workerData: { root } });
+    const dist = vscode.Uri.joinPath(extensionUri, "dist");
+    const worker = new Worker(vscode.Uri.joinPath(dist, "analyzerWorker.js").fsPath, {
+      workerData: { root, wasmDir: vscode.Uri.joinPath(dist, "grammars").fsPath },
+    });
     const cancel = token.onCancellationRequested(() => {
       void worker.terminate();
       reject(new vscode.CancellationError());
     });
-    worker.once("message", (reply: WorkerReply) => {
+    let reported = 0;
+    worker.on("message", (m: Reply) => {
+      if (m.kind === "progress") {
+        if (m.phase === "parsing" && m.total) {
+          const pct = Math.floor((m.done / m.total) * 90);
+          progress.report({ message: `parsing ${m.done.toLocaleString()} / ${m.total.toLocaleString()} files`, increment: pct - reported });
+          reported = pct;
+        } else if (m.phase === "linking") progress.report({ message: "linking imports…" });
+        return;
+      }
       cancel.dispose();
       void worker.terminate();
-      if (reply.ok) resolve(reply);
-      else reject(new Error(reply.error));
+      if (m.ok) resolve({ graph: codeGraphSchema.parse(m.graph), ms: m.ms, parseMs: m.parseMs });
+      else reject(new Error(m.error));
     });
     worker.once("error", (e) => {
       cancel.dispose();
@@ -29,12 +48,17 @@ function analyze(extensionUri: vscode.Uri, root: string, token: vscode.Cancellat
 }
 
 /**
- * "Tracer: Open Graph": analyzes the first workspace folder in a worker thread (with progress),
- * reports warnings, and shows the graph. Resolves to the summary (used by tests), or undefined if there
- * was nothing to analyze or the user cancelled.
+ * "Tracer: Open Graph": analyzes `target` (a folder from the explorer menu) or the first workspace folder
+ * in a worker thread (with progress), reports warnings, and shows the graph. Resolves to the summary (used by
+ * tests), or undefined if there was nothing to analyze or the user cancelled.
  */
-export async function openGraphView(context: vscode.ExtensionContext, output: vscode.OutputChannel): Promise<CodeGraphSummary | undefined> {
-  const folder = vscode.workspace.workspaceFolders?.[0];
+export async function openGraphView(
+  context: vscode.ExtensionContext,
+  output: vscode.OutputChannel,
+  target?: vscode.Uri,
+): Promise<CodeGraphSummary | undefined> {
+  const first = vscode.workspace.workspaceFolders?.[0];
+  const folder = target ? { uri: target, name: target.path.slice(target.path.lastIndexOf("/") + 1) } : first;
   if (!folder) {
     void vscode.window.showErrorMessage("Tracer: open a folder first. The graph is built from the first workspace folder.");
     return undefined;
@@ -44,13 +68,13 @@ export async function openGraphView(context: vscode.ExtensionContext, output: vs
     return undefined;
   }
 
-  let result: { graph: CodeGraph; ms: number };
+  let result: { graph: CodeGraph; ms: number; parseMs: number };
   try {
     result = await vscode.window.withProgress(
       { location: vscode.ProgressLocation.Notification, title: `Tracer: analyzing ${folder.name}…`, cancellable: true },
       // Forward slashes, as the analyzer expects. (Not toPosix from @tracer/core/analyzer: importing that
       // entry would pull the TypeScript compiler into extension.js; it belongs in the worker bundle only.)
-      (_progress, token) => analyze(context.extensionUri, folder.uri.fsPath.split("\\").join("/"), token),
+      (progress, token) => analyze(context.extensionUri, folder.uri.fsPath.split("\\").join("/"), progress, token),
     );
   } catch (e) {
     if (e instanceof vscode.CancellationError) return undefined;

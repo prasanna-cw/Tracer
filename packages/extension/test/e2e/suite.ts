@@ -51,6 +51,14 @@ export async function run(): Promise<void> {
     await vscode.commands.executeCommand("workbench.action.closeAllEditors");
   });
 
+  await test("Open Graph on a folder analyzes every language (samples/polyglot: 10 services, 10 languages)", async () => {
+    const summary = await vscode.commands.executeCommand<CodeGraphSummary | undefined>("tracer.openGraph", vscode.Uri.file(join(repo, "samples", "polyglot")));
+    assert.ok(summary, "the command returned no summary");
+    assert.deepEqual([summary.fileCount, summary.edgeCount, summary.unresolvedCount], [34, 23, 0]);
+    assert.equal(Object.keys(summary.languages ?? {}).length, 11);
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
   await test("opens save-flow.diagram.json in the Tracer editor and the webview renders it", async () => {
     const uri = vscode.Uri.file(join(repo, "samples", "save-flow.diagram.json"));
     await vscode.commands.executeCommand("vscode.openWith", uri, "tracer.flowEditor");

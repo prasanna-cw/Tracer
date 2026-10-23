@@ -22,6 +22,11 @@ export default tseslint.config(
     ...reactHooks.configs.flat["recommended-latest"],
   },
   {
+    // Build scripts run in Node.
+    files: ["**/*.mjs"],
+    languageOptions: { globals: { console: "readonly", process: "readonly" } },
+  },
+  {
     files: ["**/test/**"],
     rules: { "@typescript-eslint/no-non-null-assertion": "off" },
   },

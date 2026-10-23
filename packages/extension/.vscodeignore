@@ -3,6 +3,7 @@
 !dist/extension.js
 !dist/analyzerWorker.js
 !dist/webview/**
+!dist/grammars/**
 !package.json
 !README.md
 !media/**

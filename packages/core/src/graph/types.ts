@@ -10,6 +10,8 @@ export const codeGraphNodeSchema = z.object({
   loc: z.number().int().nonnegative(),
   inDegree: z.number().int().nonnegative(),
   outDegree: z.number().int().nonnegative(),
+  lang: z.string().optional(), // "typescript", "java", "python", …
+  service: z.string().optional(), // the folder of its project manifest ("" = the root)
 });
 
 export const codeGraphEdgeSchema = z.object({ source: z.string(), target: z.string() });
@@ -22,6 +24,7 @@ export const codeGraphSummarySchema = z.object({
   externalCount: z.number().int(), // package/builtin imports ("react", "node:fs")
   assetCount: z.number().int(), // non-code files that exist ("./app.css", "./data.json")
   cycleCount: z.number().int(), // strongly connected components with more than one file
+  languages: z.record(z.string(), z.number().int()).optional(), // files per language
   unresolved: z.array(z.object({ from: z.string(), specifier: z.string() })),
   warnings: z.array(z.string()),
 });
@@ -29,7 +32,8 @@ export const codeGraphSummarySchema = z.object({
 export const codeGraphSchema = z.object({
   version: z.literal(1),
   root: z.string(), // folder name only: no absolute paths in a file that gets committed or shared
-  packages: z.array(z.string()).default([]), // folders below the root holding a package.json (monorepo packages)
+  packages: z.array(z.string()).default([]), // folders below the root holding a build manifest (monorepo packages/services)
+  services: z.array(z.object({ path: z.string(), kind: z.string() })).optional(), // every manifest folder, with its build system
   nodes: z.array(codeGraphNodeSchema),
   edges: z.array(codeGraphEdgeSchema),
   summary: codeGraphSummarySchema,

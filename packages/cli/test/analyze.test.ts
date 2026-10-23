@@ -1,15 +1,18 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { analyzePath, serializeGraph } from "../src/analyze";
 
 const demoRoot = fileURLToPath(new URL("../../../samples/demo-repo", import.meta.url));
-const r = analyzePath(demoRoot);
+const r = await analyzePath(demoRoot);
 const g = r.graph;
 const edges = g.edges.map((e) => `${e.source} -> ${e.target}`);
 
 describe("analyzer on samples/monorepo (nearest tsconfig per file)", () => {
-  const m = analyzePath(fileURLToPath(new URL("../../../samples/monorepo", import.meta.url))).graph;
+  let m: Awaited<ReturnType<typeof analyzePath>>["graph"];
+  beforeAll(async () => {
+    m = (await analyzePath(fileURLToPath(new URL("../../../samples/monorepo", import.meta.url)))).graph;
+  });
 
   it("resolves the same alias (~/*) against each package's own tsconfig", () => {
     expect(m.edges.map((e) => `${e.source} -> ${e.target}`)).toEqual([
@@ -105,5 +108,51 @@ describe("analyzer on samples/demo-repo", () => {
   it("the committed samples/demo-graph.json is up to date (run `npm run analyze:demo` if this fails)", () => {
     const committed = readFileSync(fileURLToPath(new URL("../../../samples/demo-graph.json", import.meta.url)), "utf8");
     expect(committed.replace(/\r\n/g, "\n")).toBe(serializeGraph(r));
+  });
+});
+
+describe("analyzer on samples/polyglot (10 services, 10 languages)", () => {
+  let p: Awaited<ReturnType<typeof analyzePath>>["graph"];
+  beforeAll(async () => {
+    p = (await analyzePath(fileURLToPath(new URL("../../../samples/polyglot", import.meta.url)))).graph;
+  }, 60_000);
+
+  it("links every language by its own rules", () => {
+    const e = p.edges.map((x) => `${x.source} -> ${x.target}`);
+    expect(e).toEqual([
+      "billing-kotlin/src/main/kotlin/com/acme/billing/BillingService.kt -> billing-kotlin/src/main/kotlin/com/acme/billing/Invoice.kt", // same package, no import
+      "engine-cpp/src/engine.cpp -> engine-cpp/include/util/log.h", // include/ directory
+      "engine-cpp/src/engine.cpp -> engine-cpp/src/engine.h",
+      "engine-cpp/src/main.cpp -> engine-cpp/src/engine.h",
+      "inventory-go/main.go -> inventory-go/internal/store/memory.go", // a Go import is a whole package
+      "inventory-go/main.go -> inventory-go/internal/store/store.go",
+      "legacy-php/src/Controllers/HomeController.php -> legacy-php/src/Models/Page.php", // use App\Models\Page
+      "legacy-php/src/Controllers/HomeController.php -> legacy-php/src/helpers.php", // require_once __DIR__ . '/../helpers.php'
+      "notify-ruby/lib/notifier.rb -> notify-ruby/lib/channels/email.rb",
+      "orders-java/src/main/java/com/acme/orders/repo/OrderRepository.java -> orders-java/src/main/java/com/acme/orders/model/Order.java",
+      "orders-java/src/main/java/com/acme/orders/service/OrderService.java -> orders-java/src/main/java/com/acme/orders/model/Order.java",
+      "orders-java/src/main/java/com/acme/orders/service/OrderService.java -> orders-java/src/main/java/com/acme/orders/repo/OrderRepository.java",
+      "orders-java/src/main/java/com/acme/orders/web/OrderController.java -> orders-java/src/main/java/com/acme/orders/service/OrderService.java",
+      "payments-csharp/Controllers/PaymentsController.cs -> payments-csharp/Services/IPaymentService.cs", // using namespace + type name
+      "payments-csharp/Services/PaymentService.cs -> payments-csharp/Models/Payment.cs",
+      "payments-csharp/Services/PaymentService.cs -> payments-csharp/Services/IPaymentService.cs", // same namespace
+      "search-rust/src/main.rs -> search-rust/src/index.rs", // mod index;
+      "search-rust/src/main.rs -> search-rust/src/query/mod.rs", // mod query; + use crate::query::Query
+      "search-rust/src/query/mod.rs -> search-rust/src/index.rs", // use super::index::Index
+      "users-python/app/main.py -> users-python/app/routes/users.py", // from app.routes import users
+      "users-python/app/routes/users.py -> users-python/app/db.py", // from ..db import session
+      "users-python/app/routes/users.py -> users-python/app/models.py",
+      "web-ts/src/main.ts -> web-ts/src/api.ts",
+    ]);
+    expect(p.summary).toMatchObject({ fileCount: 34, unresolvedCount: 0, skippedCount: 0 });
+  });
+
+  it("detects the ten services with their build systems, and tags files with language and service", () => {
+    expect(p.services?.map((s) => `${s.path}:${s.kind}`)).toEqual([
+      "billing-kotlin:gradle", "engine-cpp:cmake", "inventory-go:go", "legacy-php:composer", "notify-ruby:ruby",
+      "orders-java:maven", "payments-csharp:dotnet", "search-rust:cargo", "users-python:python", "web-ts:npm",
+    ]);
+    expect(p.nodes.find((n) => n.path.endsWith("OrderService.java"))).toMatchObject({ lang: "java", service: "orders-java" });
+    expect(Object.keys(p.summary.languages ?? {}).sort()).toEqual(["c", "cpp", "csharp", "go", "java", "kotlin", "php", "python", "ruby", "rust", "typescript"]);
   });
 });

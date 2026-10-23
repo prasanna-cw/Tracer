@@ -17,7 +17,9 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.window.registerCustomEditorProvider(FlowEditorProvider.viewType, new FlowEditorProvider(context, output, statuses), {
       supportsMultipleEditorsPerDocument: false,
     }),
-    vscode.commands.registerCommand("tracer.openGraph", () => openGraphView(context, output)),
+    vscode.commands.registerCommand("tracer.openGraph", (target?: unknown) =>
+      openGraphView(context, output, target instanceof vscode.Uri ? target : undefined),
+    ),
     vscode.commands.registerCommand("tracer.openDiagram", openDiagramPicker),
   );
 

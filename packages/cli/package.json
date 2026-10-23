@@ -16,6 +16,7 @@
     "tsx": "^4.20.0"
   },
   "exports": {
-    "./nodeFileSystem": "./src/nodeFileSystem.ts"
+    "./nodeFileSystem": "./src/nodeFileSystem.ts",
+    "./workspace": "./src/workspace.ts"
   }
 }
