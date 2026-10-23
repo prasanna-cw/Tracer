@@ -57,6 +57,7 @@ export async function openGraphView(
   context: vscode.ExtensionContext,
   output: vscode.OutputChannel,
   target?: vscode.Uri,
+  view: "map" | "graph" = "graph",
 ): Promise<CodeGraphSummary | undefined> {
   const first = vscode.workspace.workspaceFolders?.[0];
   const folder = target ? { uri: target, name: target.path.slice(target.path.lastIndexOf("/") + 1) } : first;
@@ -97,7 +98,7 @@ export async function openGraphView(
       .then((choice) => choice && output.show(true));
   }
 
-  const panel = vscode.window.createWebviewPanel("tracer.graph", `Graph: ${folder.name}`, vscode.ViewColumn.Active, {
+  const panel = vscode.window.createWebviewPanel("tracer.graph", `${view === "map" ? "Map" : "Graph"}: ${folder.name}`, vscode.ViewColumn.Active, {
     ...webviewOptions(context.extensionUri),
     retainContextWhenHidden: true, // keeps the layout when the tab is in the background
   });
@@ -109,7 +110,7 @@ export async function openGraphView(
   const server = serve(
     panel.webview,
     {
-      init: async () => ({ mode: "graph", ...currentTheme() }),
+      init: async () => ({ mode: "graph", view, ...currentTheme() }),
       loadGraph: async () => graph,
       openSource: async ({ path, line }) => openSource([folder.uri], path, line),
       exportFile: async (p) => exportFile(p, folder.uri),

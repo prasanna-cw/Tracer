@@ -80,7 +80,7 @@ Paths are relative to where you run the command.
 
 ## VS Code extension
 
-Build and install it locally (it is not published, and must not be until publisher/license are set):
+Build and install it locally:
 
 ```powershell
 npm install
@@ -95,14 +95,15 @@ Then, in VS Code:
   - **Show Flow of This Function**: the flowchart of the function under the cursor: `if`/`else`, loops (with their back-edge), `switch`/`match`, `try`/`catch`/`finally`, returns and throws. A call that resolves to a function in your workspace links to its definition (click the card, **Open source**).
   - **Trace Calls From This Function**: the call tree across files (Controller → Service → Repository), coloured by role.
   - The diagram opens **beside** your code and is editable; **Save** writes a `.diagram.json` you can keep and annotate.
-  - Also in the explorer: right-click a file for **Show Flow**, a folder for **Open Graph**.
+  - Also in the explorer: right-click a file for **Show Flow**, a folder for **Open Map** or **Open Graph**.
+- **Tracer: Open Map** (or the Tracer icon in the activity bar): the workspace as an interactive diagram. It opens on the workspace and its biggest folders; **click a folder to open or close it**, and the imports between whatever is visible are rolled up with a count (`app → core: 15`). Click a file to light up just its imports and importers (everything else dims) and see its details. **Find a file** opens the folders on the way to it. Big folders show 30 items and a "+ N more" card. Services (folders with a `package.json`, `pom.xml`, `go.mod`, …) are marked with their build system. The **Graph** tab next to it is the free-moving dot view.
 - open any `*.diagram.json` or `*.canvas`: it opens in the **Tracer Flow** editor (right-click the tab, "Reopen Editor With…" for the text);
 - the **Tracer** icon in the activity bar, or the Command Palette: **Tracer: Open Graph**, **Tracer: Open Saved Flow…**;
 - setting **tracer.theme**: `auto` (match VS Code), `light`, `dark`; **tracer.flow.traceDepth** (1-8, default 4).
 
-The same diagrams from a terminal: `npm run flow -- --root <repo> --file <file> [--line N [--end M] | --trace] --out x.diagram.json`.
+The same diagrams from a terminal: `npm run flow -- --root <repo> --file <file> [--line N [--end M] | --trace] --out x.diagram.json`. Speed on a big workspace: `npm run bench -- --files 6000` (see `docs/DECISIONS.md` D34).
 
-To uninstall: `code --uninstall-extension todo-publisher.tracer`.
+To uninstall: `code --uninstall-extension prasanna-murugan.tracer`.
 
 Develop: open this repo in VS Code and press **F5** ("Run Tracer extension": builds, then opens `samples/demo-repo` in an Extension Development Host). Integration tests in a real VS Code: `npm run test:vscode` (downloads VS Code, about 350 MB, on first run).
 

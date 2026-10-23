@@ -10,7 +10,7 @@ import type { CodeGraphSummary } from "@tracer/core";
 type Api = { statusOf(uri: string): { state: string; nodeCount?: number; detail?: string } | undefined };
 
 const repo = resolve(__dirname, "../../../..");
-const EXTENSION_ID = "todo-publisher.tracer";
+const EXTENSION_ID = "prasanna-murugan.tracer";
 
 async function waitFor<T>(what: string, get: () => T | undefined, timeoutMs = 30_000): Promise<T> {
   const until = Date.now() + timeoutMs;
@@ -56,6 +56,13 @@ export async function run(): Promise<void> {
     assert.ok(summary, "the command returned no summary");
     assert.deepEqual([summary.fileCount, summary.edgeCount, summary.unresolvedCount], [34, 23, 0]);
     assert.equal(Object.keys(summary.languages ?? {}).length, 11);
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  await test("Open Map shows the workspace as a map (same analysis as the graph)", async () => {
+    const summary = await vscode.commands.executeCommand<CodeGraphSummary | undefined>("tracer.openMap");
+    assert.ok(summary, "the command returned no summary");
+    assert.deepEqual([summary.fileCount, summary.edgeCount], [34, 23]);
     await vscode.commands.executeCommand("workbench.action.closeAllEditors");
   });
 

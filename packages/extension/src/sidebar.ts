@@ -51,6 +51,7 @@ export class SidebarProvider implements vscode.TreeDataProvider<Item> {
         .sort((a, b) => String(a.tooltip).localeCompare(String(b.tooltip)));
     };
     return [
+      action("Open Map", "type-hierarchy", "tracer.openMap", "Folders, files and how they import each other"),
       action("Open Graph", "graph", "tracer.openGraph", "Import graph of the workspace"),
       action("Open a saved flow…", "go-to-file", "tracer.openDiagram", "Pick a *.diagram.json or *.canvas file"),
       diagrams,

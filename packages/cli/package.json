@@ -8,7 +8,8 @@
     "analyze": "tsx src/analyze.ts",
     "export:canvas": "tsx src/canvas.ts export",
     "import:canvas": "tsx src/canvas.ts import",
-    "flow": "tsx src/flow.ts"
+    "flow": "tsx src/flow.ts",
+    "bench": "tsx src/bench.ts"
   },
   "dependencies": {
     "@tracer/core": "*"

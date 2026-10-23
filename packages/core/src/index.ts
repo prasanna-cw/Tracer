@@ -14,3 +14,4 @@ export * from "./graph/types";
 export { findCycles, cycleEdgeKeys, edgeKey, localGraph, isTestFile, topFolder } from "./graph/algorithms";
 export * from "./protocol/messages";
 export { diagramToText, textToDiagram, isCanvasFile } from "./documents";
+export { buildMap, activateMapItem, initialMapState, revealInMap, PAGE_SIZE, type MapItem, type MapResult, type MapState } from "./graph/map";

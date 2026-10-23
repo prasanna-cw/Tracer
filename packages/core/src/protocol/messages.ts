@@ -20,7 +20,7 @@ export const methods = {
   init: {
     params: z.object({}),
     // native: follow the host's own colors (VS Code theme) instead of Tracer's light/dark palette.
-    result: z.object({ mode: z.enum(["editor", "graph", "flow"]), documentId: id.optional(), theme: themeSchema, native: z.boolean() }),
+    result: z.object({ mode: z.enum(["editor", "graph", "flow"]), view: z.enum(["map", "graph"]).optional(), documentId: id.optional(), theme: themeSchema, native: z.boolean() }),
   },
   loadDiagram: { params: z.object({ id }), result: diagramSchema },
   /** Explicit save (toolbar). In the custom editor this writes the document and saves it. */

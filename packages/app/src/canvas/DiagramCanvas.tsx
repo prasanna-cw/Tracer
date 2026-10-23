@@ -27,6 +27,8 @@ type Props = {
   minimap: boolean;
   dots: boolean;
   onSelect: (id: string | null) => void;
+  /** A click on a node (fires even when it is already selected). */
+  onActivate?: (id: string) => void;
 };
 
 const SNAP: [number, number] = [20, 20];
@@ -34,7 +36,7 @@ const SNAP: [number, number] = [20, 20];
 type GroupDrag = { x: number; y: number; members: { id: string; x: number; y: number }[] };
 
 /** Mount with `key={diagramId}` so switching diagrams resets viewport and selection. */
-export function DiagramCanvas({ diagram, dispatch, highlight, focusIds, snap, minimap, dots, onSelect }: Props) {
+export function DiagramCanvas({ diagram, dispatch, highlight, focusIds, snap, minimap, dots, onSelect, onActivate }: Props) {
   const walkthrough = highlight !== null;
   const [nodes, setNodes] = useState<FlowNode[]>(() => mergeFlowNodes([], diagram, highlight));
   // Re-sync when the diagram (undo, edit, load) or highlight changes: adjust state during render, not in an effect.
@@ -132,6 +134,7 @@ export function DiagramCanvas({ diagram, dispatch, highlight, focusIds, snap, mi
         onNodeDragStart={onNodeDragStart}
         onNodeDragStop={onNodeDragStop}
         onPaneClick={() => onSelect(null)}
+        onNodeClick={onActivate ? (_e, n) => onActivate(n.id) : undefined}
         nodesDraggable={!walkthrough}
         nodesConnectable={false}
         edgesFocusable={false}

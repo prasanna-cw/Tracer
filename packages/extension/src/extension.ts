@@ -21,7 +21,10 @@ export function activate(context: vscode.ExtensionContext) {
       supportsMultipleEditorsPerDocument: false,
     }),
     vscode.commands.registerCommand("tracer.openGraph", (target?: unknown) =>
-      openGraphView(context, output, target instanceof vscode.Uri ? target : undefined),
+      openGraphView(context, output, target instanceof vscode.Uri ? target : undefined, "graph"),
+    ),
+    vscode.commands.registerCommand("tracer.openMap", (target?: unknown) =>
+      openGraphView(context, output, target instanceof vscode.Uri ? target : undefined, "map"),
     ),
     vscode.commands.registerCommand("tracer.openDiagram", openDiagramPicker),
   );

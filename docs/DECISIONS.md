@@ -177,7 +177,7 @@ Each entry: what, why, alternative considered.
 
 ## D29. Tracer: name, look, Light/Dark
 
-- **Name:** the product is **Tracer** (extension id `todo-publisher.tracer`, commands `tracer.*`, setting `tracer.theme`, editor `tracer.flowEditor`). Internal packages are `@tracer/*`. The JSON Canvas stash key is now `tracer`; files written with the old `codemap` key still import.
+- **Name:** the product is **Tracer** (extension id `prasanna-murugan.tracer`, commands `tracer.*`, setting `tracer.theme`, editor `tracer.flowEditor`). Internal packages are `@tracer/*`. The JSON Canvas stash key is now `tracer`; files written with the old `codemap` key still import.
 - **Themes:** Light and Dark (Tracer palettes) plus **native**: with `tracer.theme: auto` in VS Code, the chrome uses VS Code's own theme variables (`--vscode-*`, `themes/native.css`), so it matches any theme including high contrast; category and graph colors follow VS Code's light/dark kind. In the browser the default follows the OS preference.
 - **UI:** compact 40px toolbar of codicon buttons (VS Code's icon font, bundled, no network) with tooltips; Flow | Graph segmented switch; Snap/Minimap/exports in a **⋯** menu; walkthrough as a floating card with a progress strip.
 - **Graph defaults:** search, three filter chips and zoom buttons are all that is shown; Folders and **Layout settings** (the force sliders) are collapsed. The ~12 most-connected files are always labelled so the overview names what matters; labels have a background halo.
@@ -203,6 +203,31 @@ Each entry: what, why, alternative considered.
 - **Panel:** one Tracer flow panel opens beside the code and is reused (its content replaced), so repeated use does not fill the editor with tabs. Edits live in memory; **Save** writes a `.diagram.json` and opens it in the flow editor.
 - **Index:** per workspace root, every function and type are indexed once in a worker thread, then kept fresh by a file watcher (changed files re-parsed one at a time). The file being flowed is always parsed from the editor's text, so unsaved edits are reflected.
 - **Tests inside VS Code:** each run uses a fresh profile (a restored window from an earlier run re-ran the suite), the workspace is `samples/polyglot`, and URIs are built from the workspace folder (the window is opened through a junction while `__dirname` is the real path).
+
+## D33. The workspace map
+
+- **What:** `core/graph/map.ts` turns the analyzer's `CodeGraph` into a `Diagram` (the same schema as every other diagram, so the canvas, the side panel, exports and themes all work unchanged). The folder tree is built from file paths, chains of single-child folders are merged (`src/main/java/com/acme` is one card), each top-level branch gets its own colour, and imports are **rolled up to the nearest visible card** with a count. The app keeps the expand state and asks for a new diagram on each click; it is pure, so it is unit-tested (roll-up counts are checked against a brute-force count, paging, reveal, layout overlap).
+- **Why not drawn from the graph view?** Dots and lines do not say "this is the orders service and it depends on billing 14 times". The map answers that first and lets you drill in; the graph stays for exploring individual files.
+- **Scale:** at most 30 children per folder per page (a "+ N more" card pages in 30 more), at most 250 roll-up edges (heaviest first), so a card count stays in the low hundreds however big the repo.
+- **Reading a crowded map:** selecting a card keeps it, its neighbours and its links bright and dims the rest (the walkthrough's dimming, reused).
+- **Both views share one analysis:** the Map and Graph tabs read the same graph, loaded once per panel.
+
+## D34. Big workspaces: measured
+
+`npm run bench -- --files N` generates a throwaway workspace of 10 services in 8 languages (Java, Kotlin, Python, Go, C#, PHP, Ruby, TypeScript; every file imports three earlier files of its service) and times what Tracer does on a real repo. Windows laptop, files freshly written (so antivirus scans every first read), warm node:
+
+| 6,025 files, 60,826 imports | before | now |
+| --- | --- | --- |
+| Open Map / Graph: analyze everything (parse, resolve, link) | 18.2 s | **12.3 s** |
+| First Show Flow / Trace Calls: index every function | 36.2 s | **11.5 s** |
+| Map: open / click a folder | 57 ms / 34 ms | **61 ms / 21 ms** |
+| One flow or one call trace (index already built) | 50 ms | **13 ms** |
+| Memory | | 258 MB |
+
+- **What made it faster:** reading was most of the time (2.6 ms per file here: antivirus and cold caches), and it was one file at a time. `prefetch` now keeps 48 reads in flight (bounded to ~400 MB held), then parsing and linking use the cached text. Parsing itself is ~1.8 ms/file.
+- **Pays once:** the analysis and the index run in a worker thread (the editor stays responsive; progress is shown) and are kept per panel / per workspace; later flows and traces take milliseconds, and the file watcher re-parses only changed files.
+- **Not done, and where the next gains are:** parse across several worker threads (parsing is ~40% of what is left), and persist the index on disk keyed by file modification time so a restart is instant. Neither is needed to be usable at this size.
+- **Limits that remain:** a graph above ~20,000 files is analyzed in tens of seconds; the Graph tab draws thousands of dots well (55-61 fps at 2,000 files) but the Map is the better first view at that size; cross-service calls over HTTP/gRPC/queues are not linked (only code that imports or names other code).
 
 ## Phase 3 seams (not built)
 

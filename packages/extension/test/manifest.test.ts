@@ -33,5 +33,6 @@ describe("extension manifest", () => {
     const explorer = menus["explorer/context"] ?? [];
     expect(explorer.find((m) => m.command === "tracer.showFlow")?.when).toContain("!explorerResourceIsFolder");
     expect(explorer.find((m) => m.command === "tracer.openGraph")?.when).toBe("explorerResourceIsFolder");
+    expect(explorer.find((m) => m.command === "tracer.openMap")?.when).toBe("explorerResourceIsFolder");
   });
 });

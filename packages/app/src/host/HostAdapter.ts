@@ -2,7 +2,7 @@ import type { CodeGraph, Diagram, Params, ThemeName } from "@tracer/core";
 
 /** Which UI the app shows. */
 /** editor: a document the host owns (VS Code text editor); flow: a generated diagram held in memory, saved on request. */
-export type HostEnv = { kind: "web" } | { kind: "editor"; documentId: string } | { kind: "flow"; documentId: string } | { kind: "graph" };
+export type HostEnv = { kind: "web" } | { kind: "editor"; documentId: string } | { kind: "flow"; documentId: string } | { kind: "graph"; view?: "map" | "graph" };
 
 /**
  * Every bit of I/O the UI does. WebHost implements it for the browser prototype; VSCodeHost implements it

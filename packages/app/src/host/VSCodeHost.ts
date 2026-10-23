@@ -73,8 +73,11 @@ export class VSCodeHost implements HostAdapter {
   async saveDiagram(id: string, diagram: Diagram): Promise<void> {
     await this.call("saveDiagram", { id, diagram });
   }
+  private graph?: Promise<CodeGraph>;
+  /** The map and the graph both ask; the (large) graph crosses the webview boundary once. */
   loadGraph(): Promise<CodeGraph> {
-    return this.call("loadGraph", {});
+    this.graph ??= this.call("loadGraph", {});
+    return this.graph;
   }
   async openSource(path: string, line?: number): Promise<void> {
     await this.call("openSource", line ? { path, line } : { path });

@@ -9,12 +9,15 @@ import { WalkthroughBar } from "./canvas/WalkthroughBar";
 import type { HostAdapter, HostEnv } from "./host/HostAdapter";
 import { SidePanel } from "./ui/SidePanel";
 import { Toasts, useToasts } from "./ui/Toasts";
-import { Toolbar, type SaveState, type Theme, type View } from "./ui/Toolbar";
+import { TracerMark } from "./ui/Icon";
+import { Toolbar, ViewTabs, type SaveState, type Theme, type View } from "./ui/Toolbar";
+import { MapView } from "./graph/MapView";
 import { GraphView } from "./graph/GraphView";
 
 const EMPTY: Diagram = { version: 1, title: "", nodes: [], edges: [] };
 const DEFAULT_ID = "save-flow.diagram.json";
 const GRAPH_HASH = "#graph";
+const MAP_HASH = "#map";
 const THEME_KEY = "tracer.theme";
 const STEP_MS = 2500;
 
@@ -57,9 +60,12 @@ export function App({ createHost, env, initialTheme, initialNative = false }: Pr
   const dirty = !hostOwnsDocument && h.present !== h.saved; // VS Code shows its own dirty marker on the tab
   const synced = useRef<Diagram | null>(null); // last diagram the host has seen (editor mode)
 
-  const [view, setView] = useState<View>(() =>
-    env.kind === "graph" || (web && location.hash === GRAPH_HASH) ? "graph" : "diagram",
-  );
+  const [view, setView] = useState<View>(() => {
+    if (env.kind === "graph") return env.view ?? "map";
+    if (web && location.hash === GRAPH_HASH) return "graph";
+    if (web && location.hash === MAP_HASH) return "map";
+    return "diagram";
+  });
   const [theme, setTheme] = useState<Theme>(() => initialTheme ?? readTheme());
   const [native, setNative] = useState(initialNative);
   const [snap, setSnap] = useState(false);
@@ -144,8 +150,8 @@ export function App({ createHost, env, initialTheme, initialNative = false }: Pr
   useEffect(() => {
     if (!web) return;
     const onHash = () => {
-      if (location.hash === GRAPH_HASH) {
-        setView("graph");
+      if (location.hash === GRAPH_HASH || location.hash === MAP_HASH) {
+        setView(location.hash === GRAPH_HASH ? "graph" : "map");
         return;
       }
       const id = decodeURIComponent(location.hash.slice(1));
@@ -294,7 +300,7 @@ export function App({ createHost, env, initialTheme, initialNative = false }: Pr
         <Toolbar
           mode={web ? "web" : "editor"}
           view={view}
-          onView={(v) => (location.hash = v === "graph" ? GRAPH_HASH : encodeURIComponent(currentId ?? DEFAULT_ID))}
+          onView={(v) => (location.hash = v === "graph" ? GRAPH_HASH : v === "map" ? MAP_HASH : encodeURIComponent(currentId ?? DEFAULT_ID))}
           diagrams={diagrams}
           currentId={currentId}
           onOpen={open}
@@ -317,9 +323,22 @@ export function App({ createHost, env, initialTheme, initialNative = false }: Pr
           onTheme={setTheme}
         />
       )}
+      {env.kind === "graph" && (
+        <header className="toolbar" role="toolbar" aria-label="Tracer">
+          <span className="brand">
+            <TracerMark />
+            Tracer
+          </span>
+          <ViewTabs view={view} views={["map", "graph"]} onView={setView} />
+        </header>
+      )}
       {view === "graph" ? (
         <main className="workspace">
           <GraphView host={host} theme={theme} />
+        </main>
+      ) : view === "map" ? (
+        <main className="workspace">
+          <MapView host={host} dark={theme === "dark"} />
         </main>
       ) : (
         <main className="workspace">

@@ -3,7 +3,22 @@ import { MenuButton, type MenuItem } from "./Menu";
 
 export type Theme = "light" | "dark";
 export type SaveState = "idle" | "saving" | "saved";
-export type View = "diagram" | "graph";
+export type View = "diagram" | "map" | "graph";
+
+const VIEW_LABEL: Record<View, string> = { diagram: "Flow", map: "Map", graph: "Graph" };
+
+/** The segmented switch between the app's views. */
+export function ViewTabs({ view, views, onView }: { view: View; views: readonly View[]; onView: (v: View) => void }) {
+  return (
+    <div className="segmented" role="tablist" aria-label="View">
+      {views.map((v) => (
+        <button key={v} type="button" role="tab" aria-selected={view === v} onClick={() => onView(v)}>
+          {VIEW_LABEL[v]}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 type Props = {
   /** web: brand, Flow/Graph switch, file picker, theme toggle. editor (VS Code): one document; theme follows VS Code. */
@@ -52,13 +67,7 @@ export function Toolbar(p: Props) {
             <TracerMark />
             Tracer
           </span>
-          <div className="segmented" role="tablist" aria-label="View">
-            {(["diagram", "graph"] as const).map((v) => (
-              <button key={v} type="button" role="tab" aria-selected={p.view === v} onClick={() => p.onView(v)}>
-                {v === "diagram" ? "Flow" : "Graph"}
-              </button>
-            ))}
-          </div>
+          <ViewTabs view={p.view} views={["diagram", "map", "graph"]} onView={p.onView} />
         </>
       )}
       {web && p.view === "diagram" && (
