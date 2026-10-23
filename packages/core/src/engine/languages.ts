@@ -371,7 +371,7 @@ export const LANGUAGES: LanguageSpec[] = [
     functions: ["function_signature", "function_expression"], // a method_signature wraps a function_signature
     types: { class_definition: "class", mixin_declaration: "class", enum_declaration: "enum", extension_declaration: "class" },
     calls: [],
-    control: { ...NO_CONTROL, if: ["if_statement"], loop: ["for_statement", "while_statement", "do_statement"], switch: ["switch_statement"], try: ["try_statement"], return: ["return_statement"] },
+    control: { ...NO_CONTROL, if: ["if_statement"], loop: ["for_statement", "while_statement", "do_statement"], switch: ["switch_statement"], try: ["try_statement"], return: ["return_statement"], throw: ["throw_expression"] },
     typeRefs: ["type_identifier"],
     imports: (n) => (n.type === "uri" ? [unquote(n.text)] : undefined),
   },

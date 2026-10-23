@@ -1,5 +1,6 @@
 import { Language, Parser, type Tree } from "web-tree-sitter";
 import { extractFacts, type FileFacts } from "./facts";
+import { buildFlow, type CallResolver, type FlowOutcome, type FlowRequest } from "./flow";
 import { languageForPath, type LangId, type LanguageSpec } from "./languages";
 
 /** Supplies WASM bytes by file name: "tree-sitter.wasm" (runtime) or "tree-sitter-<grammar>.wasm". */
@@ -50,6 +51,19 @@ export class Engine {
     if (!lang) return null;
     this.parser.setLanguage(lang);
     return this.parser.parse(text);
+  }
+
+  /** A control-flow diagram of a function or a selection, or the reason there is none. */
+  async flow(path: string, text: string, req: FlowRequest, resolve: CallResolver): Promise<FlowOutcome> {
+    const spec = languageForPath(path);
+    if (!spec) return { ok: false, reason: `Tracer does not read ${path.slice(path.lastIndexOf(".")) || "this kind of"} files.` };
+    const tree = await this.parse(spec, text);
+    if (!tree) return { ok: false, reason: `The ${spec.name} parser could not be loaded.` };
+    try {
+      return buildFlow(spec, tree.rootNode, text, path, req, resolve);
+    } finally {
+      tree.delete();
+    }
   }
 
   /** Facts for one file, or undefined for files of unsupported languages. */

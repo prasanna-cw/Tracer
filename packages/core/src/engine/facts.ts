@@ -1,4 +1,5 @@
 import type { Node } from "web-tree-sitter";
+import { cleanCallee } from "./callee";
 import type { LangId, LanguageSpec, TypeKind } from "./languages";
 
 /** What one source file declares and uses: everything the workspace graph needs, nothing more. */
@@ -10,7 +11,8 @@ export type FileFacts = {
   /** Raw import specifiers, as written (see LanguageSpec.imports for each language's encoding). */
   imports: string[];
   types: { name: string; kind: TypeKind; line: number }[];
-  functions: { name: string; container?: string; line: number; endLine: number }[];
+  /** `calls`: distinct callee names (as written, up to the first parenthesis) in source order, nested functions excluded. */
+  functions: { name: string; container?: string; line: number; endLine: number; calls: string[] }[];
   /** Capitalized names the file mentions in type positions (linked by name to the files declaring them). */
   typeRefs: string[];
   syntaxErrors: boolean;
@@ -28,6 +30,8 @@ const PACKAGE_NODES = new Set([
 ]);
 const NAME_NODES = new Set(["identifier", "simple_identifier", "type_identifier", "constant", "field_identifier", "property_identifier", "name"]);
 const MAX_TYPE_REFS = 400;
+const MAX_CALLS = 60;
+
 
 /** The declared name of a function/type node, across grammars (name field, C declarators, Kotlin/Swift children, `const f = () => …`). */
 export function nameOf(n: Node): string | undefined {
@@ -65,12 +69,15 @@ export function extractFacts(spec: LanguageSpec, root: Node, text: string): File
   const typeRefNodes = new Set(spec.typeRefs);
   const refs = new Set<string>();
   const containers: { depth: number; name: string }[] = [];
+  const calls = new Set(spec.calls);
+  const fnStack: { depth: number; index: number }[] = []; // innermost function last
   const cursor = root.walk();
   let depth = 0;
   for (;;) {
     if (cursor.nodeIsNamed) {
       const type = cursor.nodeType;
       while (containers.length && (containers.at(-1)?.depth ?? -1) >= depth) containers.pop();
+      while (fnStack.length && (fnStack.at(-1)?.depth ?? -1) >= depth) fnStack.pop();
       const kind = spec.types[type];
       if (kind || functions.has(type) || IMPORT_NODES.has(type) || PACKAGE_NODES.has(type)) {
         const node = cursor.currentNode;
@@ -83,7 +90,8 @@ export function extractFacts(spec: LanguageSpec, root: Node, text: string): File
         } else if (functions.has(type)) {
           const name = nameOf(node);
           if (name) {
-            facts.functions.push({ name, container: containers.at(-1)?.name, line: node.startPosition.row + 1, endLine: node.endPosition.row + 1 });
+            facts.functions.push({ name, container: containers.at(-1)?.name, line: node.startPosition.row + 1, endLine: node.endPosition.row + 1, calls: [] });
+            fnStack.push({ depth, index: facts.functions.length - 1 });
           }
         } else if (IMPORT_NODES.has(type) && spec.imports) {
           const found = spec.imports(node);
@@ -91,6 +99,10 @@ export function extractFacts(spec: LanguageSpec, root: Node, text: string): File
         } else if (PACKAGE_NODES.has(type) && spec.packageOf && !facts.package) {
           facts.package = spec.packageOf(node) || undefined;
         }
+      } else if (calls.has(type) && fnStack.length) {
+        const fn = facts.functions[fnStack.at(-1)?.index ?? -1];
+        const name = cleanCallee(cursor.nodeText);
+        if (fn && name && fn.calls.length < MAX_CALLS && !fn.calls.includes(name)) fn.calls.push(name);
       } else if (typeRefNodes.has(type) && refs.size < MAX_TYPE_REFS) {
         const t = cursor.nodeText;
         if (/^[A-Z]/.test(t) && t.length < 80) refs.add(t);

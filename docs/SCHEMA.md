@@ -28,7 +28,7 @@ Unknown fields are preserved everywhere.
 | `label` | string | group label |
 | `file`, `subpath` | string | required `file` for `type: "file"` |
 | `url` | string | required for `type: "link"` |
-| `kind` | `"layer" \| "entity" \| "data" \| "table" \| "note" \| "start"` | picks the node component |
+| `kind` | `layer`, `entity`, `data`, `table`, `note`, `start`, `decision`, `end` | picks the node component. `decision` is a branch or loop header (its `subtitle` is the keyword: if, loop, switch, try); `end` is a return or throw |
 | `title`, `subtitle` | string | card heading |
 | `category` | string | color family. Canonical: `layer, entity, db, service, data, note, warning`. Aliases (case-insensitive) map onto them, e.g. `database`/`table`/`sql` → `db`, `api`/`backend` → `service`, `model`/`domain` → `entity`, `dto`/`input` → `data`, `error`/`risk` → `warning`. Other values are allowed, warn, and get a stable fallback color |
 | `rows` | `{ text, muted? }[]` | table/data rows. Cells separated by ` \| `; a muted first row is a header |

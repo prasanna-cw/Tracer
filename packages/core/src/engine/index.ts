@@ -3,3 +3,6 @@
 export { Engine, type WasmLoader } from "./engine";
 export { extractFacts, nameOf, type FileFacts } from "./facts";
 export { LANGUAGES, languageById, languageForPath, type LangId, type LanguageSpec, type TypeKind } from "./languages";
+export { cleanCallee } from "./callee";
+export { buildFlow, type CallResolver, type CallTarget, type FlowOutcome, type FlowRequest } from "./flow";
+export { buildFunctionIndex, callTrace, fileOverview, roleOf, type FunctionIndex, type IndexedFile } from "./overview";

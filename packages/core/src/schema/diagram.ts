@@ -14,7 +14,8 @@ export const colorSchema = z
     'must be a preset "1".."6" or a hex color like "#4f46e5"',
   );
 
-export const nodeKindSchema = z.enum(["layer", "entity", "data", "table", "note", "start"]);
+// decision / end: the branch points and exits of generated control-flow diagrams.
+export const nodeKindSchema = z.enum(["layer", "entity", "data", "table", "note", "start", "decision", "end"]);
 
 export const rowSchema = z.looseObject({
   text: z.string(),
