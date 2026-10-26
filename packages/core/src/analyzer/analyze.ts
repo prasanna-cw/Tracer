@@ -9,7 +9,11 @@ import { linkFacts, type FactsFile, type Service } from "./linkFacts";
 
 const SOURCE_FILE = /\.(ts|tsx|js|jsx|mjs|cjs|mts|cts)$/i;
 const DECLARATION_FILE = /\.d\.[cm]?ts$/i;
-const ALWAYS_IGNORED = new Set(["node_modules", "dist", "build", ".git", "coverage"]);
+// Dependencies, caches and build output: never the user's code, often thousands of files.
+const ALWAYS_IGNORED = new Set([
+  "node_modules", "dist", "build", ".git", "coverage",
+  ".venv", "venv", "site-packages", "__pycache__", ".tox", ".mypy_cache", ".pytest_cache", ".next", ".nuxt", ".gradle", ".idea", ".vs",
+]);
 const MAX_UNRESOLVED_LISTED = 200;
 
 // Code-point order, not localeCompare: output must be byte-identical on every machine and locale.
@@ -222,6 +226,7 @@ export function walk(fs: FileSystemHost, root: string, ignore: IgnoreMatcher): {
   const services: Service[] = [];
   const visit = (dir: string, relDir: string) => {
     const entries = fs.readDirectory(dir).sort((a, b) => cmp(a.name, b.name));
+    if (relDir && entries.some((e) => !e.isDirectory && e.name === "pyvenv.cfg")) return; // a Python virtualenv, whatever its name
     const kind = entries.flatMap((e) => (e.isDirectory ? [] : [manifestKind(e.name)])).find(Boolean);
     if (kind) services.push({ path: relDir, kind });
     for (const e of entries) {

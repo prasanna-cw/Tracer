@@ -3,7 +3,8 @@ import type { ZoomTransform } from "d3-zoom";
 import type { CodeGraphNode } from "@tracer/core";
 
 /** `colorIndex` is the folder's palette slot; `color` is resolved from the theme just before each frame. */
-export type SimNode = SimulationNodeDatum & { id: string; node: CodeGraphNode; r: number; colorIndex: number; color: string; label: string };
+/** `x`/`y`: where the node is drawn; `tx`/`ty`: where the layout last put it (drawing eases toward it). */
+export type SimNode = SimulationNodeDatum & { id: string; node: CodeGraphNode; r: number; colorIndex: number; color: string; label: string; tx?: number; ty?: number };
 export type SimLink = SimulationLinkDatum<SimNode> & { key: string };
 
 export type GraphColors = { bg: string; edge: string; accent: string; cycle: string; text: string; palette: string[] };
@@ -14,6 +15,8 @@ export type Scene = {
   colors: GraphColors;
   /** Hovered (or else selected) node: it and its neighbors stay bright, the rest dims. */
   focus: { id: string; neighbors: ReadonlySet<string> } | null;
+  /** 0..1: how far the focus highlight has faded in (it fades rather than switching). */
+  fade: number;
   selectedId: string | null;
   matches: ReadonlySet<string>;
   cycleKeys: ReadonlySet<string> | null; // null = cycle highlighting off
@@ -34,7 +37,8 @@ export function drawGraph(ctx: CanvasRenderingContext2D, width: number, height: 
 
   const lit = (id: string): boolean =>
     s.focus ? id === s.focus.id || s.focus.neighbors.has(id) : s.matches.size ? s.matches.has(id) : true;
-  const dimming = s.focus !== null || s.matches.size > 0;
+  const amount = s.focus ? s.fade : s.matches.size ? 1 : 0; // how dimmed the unlit part is, 0..1
+  const mix = (dim: number): number => 1 - (1 - dim) * amount; // alpha of an unlit item
 
   // Graph space.
   ctx.setTransform(dpr * t.k, 0, 0, dpr * t.k, dpr * t.x, dpr * t.y);
@@ -50,16 +54,18 @@ export function drawGraph(ctx: CanvasRenderingContext2D, width: number, height: 
     else if (s.cycleKeys?.has(l.key)) cycle.push(l);
     else plain.push(l);
   }
-  strokeLinks(ctx, plain, s.colors.edge, px, dimming ? DIM * 2 : 1);
-  strokeLinks(ctx, cycle, s.colors.cycle, 1.8 * px, s.focus ? 0.5 : 1);
-  strokeLinks(ctx, focused, s.colors.accent, 1.6 * px, 1);
+  strokeLinks(ctx, plain, s.colors.edge, px, mix(DIM * 2));
+  strokeLinks(ctx, cycle, s.colors.cycle, 1.8 * px, s.focus ? 1 - 0.5 * s.fade : 1);
+  // Focused edges cross-fade from plain to accent.
+  strokeLinks(ctx, focused, s.colors.edge, px, 1 - s.fade);
+  strokeLinks(ctx, focused, s.colors.accent, 1.6 * px, s.fade);
 
   // Arrowheads only when zoomed in enough to read direction, and only near the viewport.
   if (t.k >= 1.2) {
     const view = viewport(t, width, height, 40);
-    drawArrows(ctx, plain, s.colors.edge, px, view, dimming ? DIM * 2 : 1);
+    drawArrows(ctx, plain, s.colors.edge, px, view, mix(DIM * 2));
     drawArrows(ctx, cycle, s.colors.cycle, px, view, 1);
-    drawArrows(ctx, focused, s.colors.accent, px, view, 1);
+    drawArrows(ctx, focused, s.colors.accent, px, view, s.fade);
   }
 
   // Nodes, bucketed by color and brightness.
@@ -72,7 +78,7 @@ export function drawGraph(ctx: CanvasRenderingContext2D, width: number, height: 
   }
   for (const [key, list] of buckets) {
     const [color, on] = key.split("|");
-    ctx.globalAlpha = on === "1" ? 1 : DIM;
+    ctx.globalAlpha = on === "1" ? 1 : mix(DIM);
     ctx.fillStyle = color ?? s.colors.text;
     ctx.beginPath();
     for (const n of list) {
@@ -122,7 +128,7 @@ export function drawGraph(ctx: CanvasRenderingContext2D, width: number, height: 
     const box = { x0: sx - half, x1: sx + half, y0: sy - 1, y1: sy + 13 };
     if (placed.some((p) => box.x0 < p.x1 && box.x1 > p.x0 && box.y0 < p.y1 && box.y1 > p.y0)) continue;
     placed.push(box);
-    ctx.globalAlpha = lit(n.id) ? 1 : DIM * 2;
+    ctx.globalAlpha = lit(n.id) ? 1 : mix(DIM * 2);
     ctx.strokeText(n.label, sx, sy); // halo in the background color keeps labels readable over edges
     ctx.fillText(n.label, sx, sy);
   }

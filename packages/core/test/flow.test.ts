@@ -100,7 +100,7 @@ describe("flow semantics", () => {
   });
 
   it("reports a missing function or an unsupported file instead of throwing", async () => {
-    expect(await engine.flow("f.ts", "const x = 1;\n", { kind: "function", line: 1 }, noCalls)).toEqual({ ok: false, reason: "There is no function at the cursor." });
+    expect(await engine.flow("f.ts", "const x = 1;\n", { kind: "function", line: 1 }, noCalls)).toEqual({ ok: false, reason: "There is no function at the cursor. Click inside a function and try again." });
     expect((await engine.flow("notes.md", "# hi", { kind: "function", line: 1 }, noCalls)).ok).toBe(false);
     expect((await engine.flow("f.ts", "const x = 1;\n", { kind: "selection", startLine: 9, endLine: 9 }, noCalls)).ok).toBe(false);
   });

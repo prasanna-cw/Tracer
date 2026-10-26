@@ -33,7 +33,6 @@ export type FromLayout = { type: "positions"; gen: number; positions: Float32Arr
 type N = SimulationNodeDatum & { r: number };
 type L = SimulationLinkDatum<N>;
 
-const FRAME_BUDGET_MS = 14; // tick for at most this long, then post one frame of positions
 const WARM_MS = 600; // off-screen layout before the first frame of new files (at most)
 const WARM_ALPHA = 0.08; // ...or until the layout is this calm
 const COLLIDE_LIMIT = 1000; // collision costs ~25% of a tick; above this many nodes the layout reads fine without it
@@ -48,7 +47,10 @@ export function createLayout(
     .force("charge", forceManyBody<N>().theta(0.9).distanceMax(1000))
     .force("x", forceX<N>(0))
     .force("y", forceY<N>(0))
-    .alphaDecay(0.045) // ~150 ticks to settle (d3 default ~300)
+    // One tick per frame and a slow cool-down: nodes glide into place over ~4 s instead of jumping there
+    // (several ticks per frame looked fast but jerky). Lower friction keeps a little drift, like Obsidian.
+    .alphaDecay(0.028)
+    .velocityDecay(0.32)
     .stop();
   let running = false;
   let dragging = 0;
@@ -67,9 +69,7 @@ export function createLayout(
 
   const loop = () => {
     if (!running) return;
-    const start = now();
-    do sim.tick();
-    while (!settledNow() && now() - start < FRAME_BUDGET_MS);
+    sim.tick();
     const settled = settledNow();
     emit(settled);
     if (settled) running = false;

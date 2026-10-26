@@ -83,7 +83,7 @@ export const LANGUAGES: LanguageSpec[] = [
     extensions: [".java"],
     tier: "deep",
     resolution: "name",
-    functions: ["method_declaration", "constructor_declaration", "lambda_expression"],
+    functions: ["method_declaration", "constructor_declaration", "compact_constructor_declaration", "static_initializer", "lambda_expression"],
     types: { class_declaration: "class", interface_declaration: "interface", enum_declaration: "enum", record_declaration: "class", annotation_type_declaration: "interface" },
     calls: ["method_invocation", "object_creation_expression"],
     control: {
@@ -109,7 +109,7 @@ export const LANGUAGES: LanguageSpec[] = [
     extensions: [".kt", ".kts"],
     tier: "deep",
     resolution: "name",
-    functions: ["function_declaration", "anonymous_function", "lambda_literal", "secondary_constructor"],
+    functions: ["function_declaration", "anonymous_function", "lambda_literal", "secondary_constructor", "anonymous_initializer", "getter", "setter"],
     types: { class_declaration: "class", object_declaration: "object", interface_declaration: "interface" },
     calls: ["call_expression"],
     control: {
@@ -185,7 +185,7 @@ export const LANGUAGES: LanguageSpec[] = [
     extensions: [".cs"],
     tier: "deep",
     resolution: "name",
-    functions: ["method_declaration", "constructor_declaration", "local_function_statement", "lambda_expression"],
+    functions: ["method_declaration", "constructor_declaration", "destructor_declaration", "operator_declaration", "conversion_operator_declaration", "accessor_declaration", "local_function_statement", "lambda_expression"],
     types: { class_declaration: "class", interface_declaration: "interface", struct_declaration: "struct", record_declaration: "class", enum_declaration: "enum" },
     calls: ["invocation_expression", "object_creation_expression"],
     control: {
@@ -276,7 +276,7 @@ export const LANGUAGES: LanguageSpec[] = [
     extensions: [".php"],
     tier: "standard",
     resolution: "php",
-    functions: ["function_definition", "method_declaration", "anonymous_function", "arrow_function"],
+    functions: ["function_definition", "method_declaration", "anonymous_function_creation_expression", "anonymous_function", "arrow_function"],
     types: { class_declaration: "class", interface_declaration: "interface", trait_declaration: "trait", enum_declaration: "enum" },
     calls: ["function_call_expression", "member_call_expression", "scoped_call_expression", "object_creation_expression"],
     control: {
@@ -305,7 +305,7 @@ export const LANGUAGES: LanguageSpec[] = [
     extensions: [".rb"],
     tier: "standard",
     resolution: "ruby",
-    functions: ["method", "singleton_method", "lambda"],
+    functions: ["method", "singleton_method", "lambda", "do_block", "block"], // blocks: `get "/x" do … end`, `lambda do … end`
     types: { class: "class", module: "module" },
     calls: ["call"],
     control: {
@@ -332,7 +332,7 @@ export const LANGUAGES: LanguageSpec[] = [
     extensions: [".swift"],
     tier: "standard",
     resolution: "name",
-    functions: ["function_declaration", "init_declaration", "lambda_literal"],
+    functions: ["function_declaration", "init_declaration", "deinit_declaration", "computed_getter", "computed_setter", "computed_property", "lambda_literal"],
     types: { class_declaration: "class", protocol_declaration: "interface" },
     calls: ["call_expression"],
     control: {
@@ -368,7 +368,7 @@ export const LANGUAGES: LanguageSpec[] = [
     extensions: [".dart"],
     tier: "standard",
     resolution: "dart",
-    functions: ["function_signature", "function_expression"], // a method_signature wraps a function_signature
+    functions: ["function_signature", "constructor_signature", "getter_signature", "setter_signature", "function_expression"], // a method_signature wraps these; the body is its sibling
     types: { class_definition: "class", mixin_declaration: "class", enum_declaration: "enum", extension_declaration: "class" },
     calls: [],
     control: { ...NO_CONTROL, if: ["if_statement"], loop: ["for_statement", "while_statement", "do_statement"], switch: ["switch_statement"], try: ["try_statement"], return: ["return_statement"], throw: ["throw_expression"] },
@@ -382,7 +382,7 @@ export const LANGUAGES: LanguageSpec[] = [
     extensions: [".lua"],
     tier: "standard",
     resolution: "none",
-    functions: ["function_declaration", "function_definition"],
+    functions: ["function_declaration", "function_definition"], // grammar: packages/core/grammars (tree-sitter-grammars)
     types: {},
     calls: ["function_call"],
     control: { ...NO_CONTROL, if: ["if_statement"], loop: ["for_statement", "while_statement", "repeat_statement"], return: ["return_statement"] },
@@ -408,10 +408,10 @@ export const LANGUAGES: LanguageSpec[] = [
     extensions: [".zig"],
     tier: "standard",
     resolution: "none",
-    functions: ["FnProto"],
+    functions: ["function_declaration"],
     types: {},
-    calls: [],
-    control: NO_CONTROL,
+    calls: ["call_expression"],
+    control: { ...NO_CONTROL, if: ["if_statement"], loop: ["while_statement", "for_statement"], return: ["return_expression"] },
     typeRefs: [],
   },
 ];

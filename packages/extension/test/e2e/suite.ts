@@ -127,7 +127,21 @@ export async function run(): Promise<void> {
     assert.ok(r.ok && /lines 16–17/.test(r.title), JSON.stringify(r));
   });
 
-  await test("Show Flow with no selection gives the file overview", async () => {
+  await test("Show Flow with the cursor in a function (no selection) draws that function", async () => {
+    await place();
+    const r = await rendered(await run("tracer.showFlow"));
+    assert.equal(r.ok && r.title, "OrderController.place");
+  });
+
+  await test("Show Flow on a selected function header draws the function, not one card", async () => {
+    const editor = await place();
+    editor.selection = new vscode.Selection(13, 18, 13, 23); // double-clicked `place`
+    const r = await rendered(await run("tracer.showFlow"));
+    assert.equal(r.ok && r.title, "OrderController.place");
+    assert.equal(r.ok && r.nodeCount, 4);
+  });
+
+  await test("Show Flow outside any function gives the file overview", async () => {
     const editor = await place();
     editor.selection = new vscode.Selection(0, 0, 0, 0);
     const r = await rendered(await run("tracer.showFlow"));
@@ -156,7 +170,7 @@ export async function run(): Promise<void> {
     const top = vscode.window.activeTextEditor;
     if (top) top.selection = new vscode.Selection(0, 0, 0, 0); // package line: not inside a function
     const none = await run("tracer.showFunctionFlow");
-    assert.deepEqual(none, { ok: false, reason: "There is no function at the cursor." });
+    assert.deepEqual(none, { ok: false, reason: "There is no function at the cursor. Click inside a function and try again." });
   });
 
   if (failures.length) throw new Error(`${failures.length} integration test(s) failed: ${failures.join("; ")}`);

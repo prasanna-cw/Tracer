@@ -120,19 +120,29 @@ function card(id: string, fn: Fn, rows: string[], extra: Partial<DiagramNode> = 
   };
 }
 
-const keyOf = (f: { path: string; line: number }): string => `${f.path}:${f.line}`;
+const keyOf = (f: { path: string; line: number; name: string }): string => `${f.path}:${f.line}:${f.name}`; // name: C# accessors share a line
 const MAX_ROWS = 5;
 
-/** How the functions of one file relate: who calls whom inside it, and what it reaches in other files. */
-export function fileOverview(file: IndexedFile, index: FunctionIndex): { ok: true; diagram: Diagram } | { ok: false; reason: string } {
-  const fns: Fn[] = file.facts.functions.map((f) => ({ ...f, path: file.path, service: file.service }));
-  if (!fns.length && !file.facts.types.length) return { ok: false, reason: `${base(file.path)} declares no functions or types.` };
+const MAX_OVERVIEW_FUNCTIONS = 60; // a 15,000-line file can declare 2,000: past this the overview is unreadable (and slow)
+const MAX_OVERVIEW_TYPES = 20;
+
+/**
+ * How the functions of one file relate: who calls whom inside it, and what it reaches in other files.
+ * A very large file shows its first functions and says how many more there are (`truncated`).
+ */
+export function fileOverview(file: IndexedFile, index: FunctionIndex): { ok: true; diagram: Diagram; truncated: boolean } | { ok: false; reason: string } {
+  const all: Fn[] = file.facts.functions.map((f) => ({ ...f, path: file.path, service: file.service }));
+  if (!all.length && !file.facts.types.length) return { ok: false, reason: `${base(file.path)} declares no functions or types.` };
+  const fns = all.slice(0, MAX_OVERVIEW_FUNCTIONS);
   const nodes: DiagramNode[] = [];
   const edges: DiagramEdge[] = [];
   const ids = new Map<string, string>(); // function key -> node id
   const nextId = (p: string) => `${p}${nodes.length + 1}`;
+  const linked = new Set<string>();
   const addEdge = (from: string, to: string, extra: Partial<DiagramEdge> = {}) => {
-    if (from !== to && !edges.some((e) => e.fromNode === from && e.toNode === to)) edges.push({ id: `e${edges.length + 1}`, fromNode: from, toNode: to, ...extra });
+    if (from === to || linked.has(`${from}>${to}`)) return;
+    linked.add(`${from}>${to}`);
+    edges.push({ id: `e${edges.length + 1}`, fromNode: from, toNode: to, ...extra });
   };
 
   if (file.facts.imports.length) {
@@ -167,18 +177,29 @@ export function fileOverview(file: IndexedFile, index: FunctionIndex): { ok: tru
       }
     }
   }
-  const typesWithoutMethods = file.facts.types.filter((t) => !fns.some((f) => f.container === t.name));
-  for (const t of typesWithoutMethods) {
+  const containers = new Set(all.map((f) => f.container));
+  const typesWithoutMethods = file.facts.types.filter((t) => !containers.has(t.name));
+  for (const t of typesWithoutMethods.slice(0, MAX_OVERVIEW_TYPES)) {
     nodes.push({ id: nextId("t"), type: "text", x: 0, y: 0, width: NODE_W, height: 60, kind: "entity", category: "data", title: t.name, subtitle: `${t.kind} · line ${t.line}`, source: { path: file.path, line: t.line } });
   }
+  const hidden = all.length - fns.length + Math.max(0, typesWithoutMethods.length - MAX_OVERVIEW_TYPES);
+  if (hidden > 0) {
+    const last = fns.at(-1);
+    nodes.push({
+      id: "more", type: "text", x: 0, y: 0, width: NODE_W, height: 72, kind: "note", category: "note",
+      title: `${hidden} more not shown`,
+      text: `From line ${(last?.endLine ?? 0) + 1}. Put the cursor in a function and run Show Flow to see it.`,
+      source: last ? { path: file.path, line: last.endLine + 1 } : undefined,
+    });
+  }
   layoutFlow(nodes, edges);
-  return { ok: true, diagram: { version: 1, title: base(file.path), nodes, edges, meta: { generated: { by: "tracer", path: file.path, scope: "file" } } } };
+  return { ok: true, truncated: hidden > 0, diagram: { version: 1, title: base(file.path), nodes, edges, meta: { generated: { by: "tracer", path: file.path, scope: "file" } } } };
 }
 
 /** The functions reachable from `start` through resolved calls, across files, up to `depth` hops. */
 export function callTrace(index: FunctionIndex, start: { path: string; line: number }, depth = 4): { ok: true; diagram: Diagram; truncated: boolean } | { ok: false; reason: string } {
   const root = index.functionAt(start.path, start.line);
-  if (!root) return { ok: false, reason: "There is no function at the cursor." };
+  if (!root) return { ok: false, reason: "There is no function at the cursor. Click inside a function and try again." };
   const nodes: DiagramNode[] = [];
   const edges: DiagramEdge[] = [];
   const seen = new Map<string, string>();

@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { analyzeRepo, listSourceFiles, type AnalyzeResult } from "@tracer/core/analyzer";
 import { Engine, type FileFacts, type IndexedFile, type WasmLoader } from "@tracer/core/engine";
@@ -10,7 +11,9 @@ export function wasmLoader(dir?: string): WasmLoader {
   const require = createRequire(require_resolve_base());
   const runtime = require.resolve("web-tree-sitter/tree-sitter.wasm");
   const grammars = require.resolve("tree-sitter-wasms/package.json").replace(/package\.json$/, "out/");
-  return (file) => readFileSync(file === "tree-sitter.wasm" ? runtime : grammars + file);
+  // packages/core/grammars overrides tree-sitter-wasms (see its README).
+  const vendored = (file: string): string => fileURLToPath(new URL(`../../core/grammars/${file}`, import.meta.url));
+  return (file) => readFileSync(file === "tree-sitter.wasm" ? runtime : existsSync(vendored(file)) ? vendored(file) : grammars + file);
 }
 // Resolve from @tracer/core, which owns the tree-sitter dependencies.
 const require_resolve_base = (): string => createRequire(import.meta.url).resolve("@tracer/core/engine");
@@ -50,7 +53,7 @@ export async function analyzeWorkspace(
   return { ...analyzeRepo(fs, root, { facts }), parseMs };
 }
 
-const SKIP_DIRS = /(^|\/)(node_modules|dist|build|\.git|coverage|target|vendor|__pycache__)(\/|$)/;
+const SKIP_DIRS = /(^|\/)(node_modules|dist|build|\.git|coverage|target|vendor|__pycache__|\.venv|venv|site-packages|\.tox|\.next|\.nuxt|\.gradle)(\/|$)/;
 
 /**
  * tree-sitter facts for every supported file under `root` (TypeScript and JavaScript included), keyed by

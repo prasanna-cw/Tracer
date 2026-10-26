@@ -35,6 +35,8 @@ const MAX_CALLS = 60;
 
 /** The declared name of a function/type node, across grammars (name field, C declarators, Kotlin/Swift children, `const f = () => …`). */
 export function nameOf(n: Node): string | undefined {
+  const fixed = FIXED_NAMES[n.type];
+  if (fixed) return fixed(n) || undefined;
   const named = n.childForFieldName("name");
   if (named) return named.text;
   let d = n.childForFieldName("declarator");
@@ -47,12 +49,121 @@ export function nameOf(n: Node): string | undefined {
   const signature = n.namedChildren.find((c) => c?.type === "function_signature");
   if (signature) return nameOf(signature);
   const first = n.namedChildren.find((c) => !!c && NAME_NODES.has(c.type));
-  if (first && n.type !== "arrow_function" && n.type !== "function_expression" && n.type !== "lambda_expression") return first.text;
-  const p = n.parent;
-  if (p && ["variable_declarator", "pair", "assignment_expression", "public_field_definition", "property_declaration"].includes(p.type)) {
-    return (p.childForFieldName("name") ?? p.childForFieldName("key") ?? p.childForFieldName("left"))?.text;
+  if (first && !ANONYMOUS.has(n.type)) return first.text;
+  let p = n.parent;
+  while (p && (p.type === "expression_list" || p.type === "parenthesized_expression")) p = p.parent; // Go `var a = func…`, `(x) => …` in parens
+  if (p && ASSIGNMENTS.has(p.type)) {
+    const target =
+      p.childForFieldName("name") ?? p.childForFieldName("key") ?? p.childForFieldName("left") ?? p.childForFieldName("pattern") ??
+      p.namedChildren.find((c) => c?.type === "variable_declaration")?.namedChildren.find((c) => !!c && NAME_NODES.has(c.type)) ??
+      p.namedChildren.find((c) => c?.type === "variable_list"); // Lua `local f = function() … end`
+    return target ? clipName(target.text) : undefined;
   }
   return undefined;
+}
+
+const ANONYMOUS = new Set(["arrow_function", "function_expression", "lambda_expression", "lambda", "lambda_literal", "closure_expression", "func_literal", "anonymous_function", "anonymous_function_creation_expression", "function_definition", "do_block", "block"]);
+const ASSIGNMENTS = new Set([
+  "variable_declarator", "pair", "assignment_expression", "public_field_definition", "property_declaration", "assignment", "var_spec",
+  "short_var_declaration", "val_definition", "var_definition", "variable_declaration", "property_signature", "field_definition",
+  "local_variable_declaration", "variable_assignment", "assignment_statement",
+]);
+const clipName = (s: string): string => {
+  const one = s.replace(/\s+/g, " ").trim();
+  return one.length > 60 ? `${one.slice(0, 59)}…` : one;
+};
+/** The property a Kotlin getter/setter, C#/Swift accessor belongs to. */
+const propertyName = (n: Node): string => {
+  let p: Node | null = n.parent;
+  while (p && p.type !== "property_declaration") p = p.parent;
+  const prop = p ?? n.previousNamedSibling; // Kotlin puts get()/set() next to the property, not inside it
+  if (!prop || prop.type !== "property_declaration") return "property";
+  const name = prop.childForFieldName("name") ?? prop.namedChildren.find((c) => c?.type === "variable_declaration") ?? null;
+  const id = name?.type === "variable_declaration" ? name.namedChildren.find((c) => !!c && NAME_NODES.has(c.type)) : name;
+  return clipName(id?.descendantsOfType(["simple_identifier", "identifier"])[0]?.text ?? id?.text ?? "property");
+};
+// The accessor keyword, not the modifier before it (`private set;`).
+const accessorWord = (n: Node): string => (n.children.some((c) => !!c && !c.isNamed && /^(set|init)$/.test(c.type)) || /setter/.test(n.type) ? "set" : "get");
+/** An accessor with no body (`{ get; set; }`) is part of an auto-property, not a function. */
+const hasBody = (n: Node): boolean => !!n.childForFieldName("body") || n.namedChildren.some((c) => c?.type === "block" || c?.type === "arrow_expression_clause");
+// Functions that have no name of their own in the grammar: named after what they are.
+const FIXED_NAMES: Record<string, (n: Node) => string> = {
+  anonymous_initializer: () => "init",
+  static_initializer: () => "static init",
+  secondary_constructor: () => "constructor",
+  deinit_declaration: () => "deinit",
+  destructor_declaration: (n) => `~${n.childForFieldName("name")?.text ?? ""}`,
+  operator_declaration: (n) => `operator ${n.children.find((c) => !!c && !c.isNamed && /^[^\w\s(]+$|^(true|false)$/.test(c.type))?.text ?? ""}`.trim(),
+  conversion_operator_declaration: (n) => `operator ${n.childForFieldName("type")?.text ?? ""}`.trim(),
+  accessor_declaration: (n) => (hasBody(n) ? `${propertyName(n)}.${accessorWord(n)}` : ""),
+  getter: (n) => `${propertyName(n)}.get`,
+  setter: (n) => `${propertyName(n)}.set`,
+  computed_getter: (n) => `${propertyName(n)}.get`,
+  computed_setter: (n) => `${propertyName(n)}.set`,
+  computed_property: (n) => propertyName(n),
+};
+
+/** Iteration callbacks (`items.map(x => …)`, `each do |x|`) behave like loop bodies, not like functions of their own. */
+const ITERATION = /(^|\.)(map|forEach|filter|reduce|reduceRight|flatMap|some|every|find|findIndex|findLast|sort|sortBy|each|each_with_index|each_with_object|map!|select|reject|collect|times|upto|downto|each_pair|each_key|each_value|Select|Where|ForEach|let|also|apply|run|with|forEachIndexed|mapNotNull|iter|for_each|into_iter|fold|any|all|count)$/;
+
+/** The call a nameless function is an argument (or the block) of, if any. */
+export function callOfCallback(n: Node): Node | undefined {
+  let p = n.parent;
+  for (let i = 0; p && i < 4; i++, p = p.parent) {
+    if (CALL_NODE.test(p.type)) return p;
+    if (!/argument|call_suffix|annotated_lambda|parenthesized/.test(p.type)) return undefined;
+  }
+  return undefined;
+}
+const CALL_NODE = /^(call|call_expression|invocation_expression|method_invocation|function_call_expression|member_call_expression|scoped_call_expression|function_call)$/;
+
+/** True for a nameless function passed to an iteration method (`map`, `forEach`, `each`, …). */
+export function isIterationCallback(n: Node): boolean {
+  if (nameOf(n)) return false;
+  const call = callOfCallback(n);
+  return !!call && ITERATION.test(calleeOf(call));
+}
+
+function calleeOf(call: Node): string {
+  const f = call.childForFieldName("function") ?? call.childForFieldName("method") ?? call.childForFieldName("target") ?? call.childForFieldName("name");
+  const recv = call.childForFieldName("receiver") ?? call.childForFieldName("object") ?? call.childForFieldName("scope");
+  const head = f ? (recv && f.startIndex > recv.endIndex ? `${recv.text}.${f.text}` : f.text) : call.text;
+  return cleanCallee(head.split("\n")[0] ?? "").replace(/\s.*$/, "");
+}
+
+/**
+ * A name for any function node: its declared name, else one made from where it sits
+ * (`app.get "/orders" callback`, `default export`, `anonymous (line 12)`).
+ */
+export function functionLabel(n: Node): string {
+  const own = nameOf(n);
+  if (own) return own;
+  const call = callOfCallback(n);
+  const callee = call?.childForFieldName("function");
+  if (call && !(callee && callee.startIndex <= n.startIndex && n.endIndex <= callee.endIndex)) {
+    // `const Button = forwardRef((p, ref) => …)`: the variable names the wrapped function.
+    const holder = call.parent && ASSIGNMENTS.has(call.parent.type) ? call.parent : undefined;
+    const held = holder && (holder.childForFieldName("name") ?? holder.childForFieldName("left"));
+    if (held) return clipName(held.text);
+    const str = call.descendantsOfType(["string", "string_literal", "interpreted_string_literal", "string_content"]).find((s) => !!s && s.startIndex < n.startIndex);
+    const arg = str ? ` ${clipName(str.text.startsWith("\"") || str.text.startsWith("'") || str.text.startsWith("`") ? str.text : `"${str.text}"`)}` : "";
+    return `${calleeOf(call)}${arg} callback`;
+  }
+  if (n.parent?.type === "export_statement" || n.parent?.type === "export_default_declaration") return "default export";
+  return `anonymous (line ${n.startPosition.row + 1})`;
+}
+
+/** Last row of a function including its body; Dart keeps the body next to the signature, not inside it. */
+export function bodyEndRow(n: Node): number {
+  const body = dartBody(n);
+  return (body ?? n).endPosition.row;
+}
+
+/** Dart: `method_signature { function_signature } function_body` – the body is the signature's next sibling. */
+export function dartBody(n: Node): Node | undefined {
+  let sig: Node = n;
+  while (sig.parent && /signature|^declaration$/.test(sig.parent.type)) sig = sig.parent;
+  return sig.nextNamedSibling?.type === "function_body" ? sig.nextNamedSibling : undefined;
 }
 
 function countLines(text: string): number {
@@ -88,9 +199,11 @@ export function extractFacts(spec: LanguageSpec, root: Node, text: string): File
             containers.push({ depth, name });
           }
         } else if (functions.has(type)) {
-          const name = nameOf(node);
+          // Named functions always; a nameless one (route handler, test body, IIFE) only at the top level, where
+          // nothing else would hold its calls. Nested callbacks stay part of their enclosing function.
+          const name = nameOf(node) ?? (fnStack.length || FIXED_NAMES[type] || isIterationCallback(node) ? undefined : functionLabel(node));
           if (name) {
-            facts.functions.push({ name, container: containers.at(-1)?.name, line: node.startPosition.row + 1, endLine: node.endPosition.row + 1, calls: [] });
+            facts.functions.push({ name, container: containers.at(-1)?.name, line: node.startPosition.row + 1, endLine: bodyEndRow(node) + 1, calls: [] });
             fnStack.push({ depth, index: facts.functions.length - 1 });
           }
         } else if (IMPORT_NODES.has(type) && spec.imports) {
@@ -99,10 +212,13 @@ export function extractFacts(spec: LanguageSpec, root: Node, text: string): File
         } else if (PACKAGE_NODES.has(type) && spec.packageOf && !facts.package) {
           facts.package = spec.packageOf(node) || undefined;
         }
-      } else if (calls.has(type) && fnStack.length) {
+      }
+      // Not `else`: in Python, Ruby and Elixir a call node is also where imports live (`require`, `import`).
+      if (calls.has(type) && fnStack.length) {
         const fn = facts.functions[fnStack.at(-1)?.index ?? -1];
-        const name = cleanCallee(cursor.nodeText);
-        if (fn && name && fn.calls.length < MAX_CALLS && !fn.calls.includes(name)) fn.calls.push(name);
+        // `call` is also where Ruby/Python imports live and where calls have no parentheses: read the callee from its fields.
+        const name = type === "call" ? calleeOf(cursor.currentNode) : cleanCallee(cursor.nodeText);
+        if (fn && name && !/^(require|require_relative|load)$/.test(name) && fn.calls.length < MAX_CALLS && !fn.calls.includes(name)) fn.calls.push(name);
       } else if (typeRefNodes.has(type) && refs.size < MAX_TYPE_REFS) {
         const t = cursor.nodeText;
         if (/^[A-Z]/.test(t) && t.length < 80) refs.add(t);

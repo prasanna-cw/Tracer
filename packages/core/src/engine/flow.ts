@@ -2,7 +2,7 @@ import type { Node } from "web-tree-sitter";
 import { layoutFlow } from "../layout/flowLayout";
 import type { Diagram, DiagramEdge, DiagramNode, Side } from "../schema/diagram";
 import { cleanCallee } from "./callee";
-import { nameOf } from "./facts";
+import { dartBody, functionLabel, isIterationCallback, nameOf } from "./facts";
 import type { LanguageSpec } from "./languages";
 
 /** A function the workspace defines, as found by the call resolver. */
@@ -13,7 +13,8 @@ export type FlowRequest =
   | { kind: "function"; line: number; column?: number } // 1-based line inside the function; 0-based column (default: first non-blank)
   | { kind: "selection"; startLine: number; endLine: number }; // 1-based, inclusive
 
-export type FlowOutcome = { ok: true; diagram: Diagram; truncated: boolean } | { ok: false; reason: string };
+/** `warning`: something the user should know about the result (for example, the code does not parse). */
+export type FlowOutcome = { ok: true; diagram: Diagram; truncated: boolean; warning?: string } | { ok: false; reason: string };
 
 export const NODE_W = 272;
 const MAX_NODES = 80;
@@ -22,7 +23,7 @@ const MAX_ROWS = 5;
 // ---- tree helpers --------------------------------------------------------------------------------------
 
 // Block-like nodes only: `for_statement` etc. must NOT match (they end in "statement" too).
-const CONTAINER = /^(block|statements|statement_list|statement_block|compound_statement|body|body_statement|then|else|else_clause|do_block|declaration_list)$|_(block|body)$/;
+const CONTAINER = /^(block|block_expression|statements|statement_list|statement_block|compound_statement|body|body_statement|then|else|else_clause|else_statement|do_block|declaration_list)$|_(block|body)$/;
 const STOP = /catch|except|rescue|handler|finally|ensure|finalizer/; // try clauses are never part of a plain body
 // switch/match arms: switch_case, case_statement, when_entry, match_arm, expression_case, switch_section, …
 // (`when_subject` and `catch_clause` must not match.)
@@ -36,6 +37,8 @@ const clip = (s: string, n: number): string => (s.length > n ? `${s.slice(0, n -
 /** Statements of a body node, with block-like wrappers flattened away (`{ … }`, `then`, `else_clause`, …). */
 function statementsOf(n: Node | null | undefined): Node[] {
   if (!n) return [];
+  // Zig/Rust/Go labels wrap a statement or a block: `blk: { … }`, `outer: while …`.
+  if (n.type === "labeled_statement" && named(n).length) return named(n).flatMap((c) => (/label|identifier/.test(c.type) ? [] : statementsOf(c)));
   if (!isContainer(n)) return [n];
   return named(n).flatMap((c) => (STOP.test(c.type) ? [] : statementsOf(c)));
 }
@@ -54,7 +57,19 @@ function bodyOf(n: Node): Node | null {
   return last && isContainer(last) ? last : null;
 }
 
-const stmtLabel = (n: Node): string => clip(oneLine(n.text.split("\n")[0] ?? "").replace(/[;{]\s*$/, "").trim(), 80);
+/**
+ * A statement's first line, as its card title. A first line that only opens something (`return (`, `foo({`,
+ * `const C = () => (`) says nothing, so the next lines are added until there is something to read.
+ */
+const stmtLabel = (n: Node): string => {
+  const lines = n.text.split("\n");
+  let s = oneLine(lines[0] ?? "");
+  for (let i = 1; i < lines.length && i < 5 && /(^|[\s=(,:])(\(|\[|\{|=>)$/.test(s.replace(/^(return|throw|raise|yield)\b\s*/, "")); i++) {
+    const next = oneLine(lines[i] ?? "");
+    if (next) s = `${s} ${next}`;
+  }
+  return clip(s.replace(/[;{]\s*$/, "").trim(), 80);
+};
 const parenless = (s: string): string => s.replace(/^\(\s*/, "").replace(/\s*\)$/, "");
 
 // ---- builder -----------------------------------------------------------------------------------------------
@@ -163,7 +178,7 @@ class Builder {
   private classify(n: Node): "if" | "loop" | "switch" | "try" | "return" | "throw" | "skip" | "plain" {
     const c = this.spec.control;
     const t = n.type;
-    if (c.if.includes(t) || /^(elif|elsif)(_|$)/.test(t)) return "if"; // `elif`/`elsif` chain like a nested if
+    if (c.if.includes(t) || /^(elif|elsif|elseif)(_|$)/.test(t)) return "if"; // `elif`/`elsif`/`elseif` chain like a nested if
     if (c.loop.includes(t)) return "loop";
     if (c.switch.includes(t)) return "switch";
     if (c.try.includes(t)) return "try";
@@ -256,8 +271,9 @@ class Builder {
   /** then-statements and else-statements of an if-like node, by field names or by the `else` token. */
   private branches(n: Node): { then: Node[]; else: Node[] | null } {
     const field = n.childForFieldName("consequence") ?? n.childForFieldName("body");
-    const alt = n.childForFieldName("alternative");
-    if (field || alt) return { then: statementsOf(field), else: alt ? statementsOf(alt) : null };
+    // Zig hangs `else` off the if as an else_clause child, without an `alternative` field.
+    const alt = n.childForFieldName("alternative") ?? named(n).find((c) => c.type === "else_clause") ?? null;
+    if (field || alt) return { then: statementsOf(field), else: alt ? statementsOf(alt.type === "else_clause" ? (alt.childForFieldName("alternative") ?? alt) : alt) : null };
     // No fields (Kotlin, Swift, …): named children after the condition, split at the `else` token.
     const kids = n.children.filter((c): c is Node => !!c);
     const elseAt = kids.findIndex((c) => c.type === "else");
@@ -268,11 +284,26 @@ class Builder {
     return { then: bodies(afterCond.slice(0, Math.max(0, cut - 1))), else: bodies(kids.slice(elseAt + 1)) };
   }
 
-  private ifFlow(n: Node, from: readonly Exit[]): Exit[] {
+  /**
+   * `alts`: the remaining branches of a Python if/elif/elif/else, which the grammar lists side by side under
+   * one repeated `alternative` field instead of nesting them.
+   */
+  private ifFlow(n: Node, from: readonly Exit[], alts?: Node[]): Exit[] {
     const unless = /^\s*unless\b/.test(n.text) || n.type.startsWith("unless");
     const id = this.decision(this.conditionOf(n), "if", "entity", n, from);
-    const b = this.branches(n);
     const [yes, no] = unless ? ["no", "yes"] : ["yes", "no"];
+    const chain = alts ?? n.childrenForFieldName("alternative").filter((c): c is Node => !!c);
+    if (alts || chain.length > 1) {
+      const thenExits = this.walk(statementsOf(n.childForFieldName("consequence") ?? n.childForFieldName("body")), [{ id, label: yes }]);
+      const [head, ...rest] = chain;
+      const elseExits = !head
+        ? [{ id, label: no }]
+        : /^(elif|elsif|elseif)/.test(head.type)
+          ? this.ifFlow(head, [{ id, label: no }], rest)
+          : this.walk(statementsOf(head), [{ id, label: no }]);
+      return [...thenExits, ...elseExits];
+    }
+    const b = this.branches(n);
     const thenExits = this.walk(b.then, [{ id, label: yes }]);
     const elseExits = b.else ? this.walk(b.else, [{ id, label: no }]) : [{ id, label: no }];
     return [...thenExits, ...elseExits];
@@ -350,7 +381,7 @@ class Builder {
   }
 
   private endFlow(n: Node, kind: "return" | "throw" | string, from: readonly Exit[]): Exit[] {
-    const text = stmtLabel(n).replace(/^(return|throw|raise)\s*/i, "");
+    const text = stmtLabel(n).replace(/^(return|throw|raise)\s*/i, "").replace(/^\(\s*/, ""); // `return (\n  <div …>` -> `<div …>`
     const { resolved, rows } = this.callInfo(n); // `return service.place(x)` links to the callee like any call
     const id = this.add(
       {
@@ -372,27 +403,55 @@ class Builder {
 
 // ---- entry points --------------------------------------------------------------------------------------------------
 
+// Lines that may sit between the cursor and the function it means: blank, comments, decorators/annotations, modifiers.
+const PREAMBLE = /^\s*($|\/\/|\/\*|\*|#|@|--|"""|'''|\[|(export|public|private|protected|internal|static|async|override|default|open|final|abstract|sealed|suspend|inline|virtual|unsafe|pub|fileprivate)\b[^({=]*$)/;
+
+/**
+ * The function the cursor is in. Nameless functions count (route handlers, test bodies, `useEffect` callbacks),
+ * except iteration callbacks (`items.map(x => …)`, `each do`), which read as a loop of the enclosing function.
+ * On the first line of a function, that function wins over a callback that starts on the same line.
+ * On a comment, decorator or modifier line above a function, it is that function.
+ */
 function functionNodeAt(spec: LanguageSpec, root: Node, line: number, text: string, col?: number): Node | undefined {
   const row = line - 1;
-  const lineText = text.split("\n")[row] ?? "";
-  const column = col ?? Math.max(0, lineText.search(/\S/));
-  let n: Node | null = root.descendantForPosition({ row, column });
-  while (n) {
-    if (spec.functions.includes(n.type) && nameOf(n)) return n;
-    n = n.parent;
+  const lines = text.split("\n");
+  const column = col ?? Math.max(0, (lines[row] ?? "").search(/\S/));
+  const isFn = (x: Node): boolean => spec.functions.includes(x.type);
+  const enclosing: Node[] = []; // innermost first
+  for (let n: Node | null = root.descendantForPosition({ row, column }); n; n = n.parent) {
+    if (isFn(n)) enclosing.push(n);
+    else if (n.type === "function_body") {
+      // Dart: the body is the signature's sibling, so walking up from the body never meets the signature.
+      const sig = n.previousNamedSibling;
+      const fn = sig && (isFn(sig) ? sig : sig.descendantsOfType(spec.functions).find((x): x is Node => !!x));
+      if (fn) enclosing.push(fn);
+    }
   }
-  // The cursor is on a modifier or decorator line (`export`, `async`, `public`, `@Get()`), just outside the node:
-  // take the first function that starts on this line or within the next two.
-  const found = root.descendantsOfType(spec.functions, { row, column: 0 }, { row: row + 2, column: 1000 });
-  return found.filter((f): f is Node => f !== null && !!nameOf(f)).sort((a, b) => a.startPosition.row - b.startPosition.row || a.startIndex - b.startIndex)[0];
+  const real = enclosing.filter((f) => !isIterationCallback(f));
+  const candidates = real.length ? real : enclosing;
+  const onHeader = candidates.filter((f) => f.startPosition.row === row);
+  const hit = onHeader.at(-1) ?? candidates[0]; // outermost function starting on this line, else the innermost
+  if (hit) return hit;
+
+  // Above a function: skip blank, comment, decorator and modifier lines down to it.
+  for (let r = row; r < lines.length && r <= row + 30; r++) {
+    const starting = root
+      .descendantsOfType(spec.functions, { row: r, column: 0 }, { row: r, column: (lines[r] ?? "").length })
+      .filter((f): f is Node => !!f && f.startPosition.row === r && !isIterationCallback(f));
+    if (starting.length) return starting.sort((a, b) => a.startIndex - b.startIndex)[0];
+    if (!PREAMBLE.test(lines[r] ?? "")) return undefined;
+  }
+  return undefined;
+}
+
+/** The function at a cursor position (1-based line, 0-based column): its first line and name, for call traces. */
+export function functionAtCursor(spec: LanguageSpec, root: Node, text: string, line: number, column?: number): { line: number; name: string } | undefined {
+  const fn = functionNodeAt(spec, root, line, text, column);
+  return fn && { line: fn.startPosition.row + 1, name: functionLabel(fn) };
 }
 
 function functionBody(n: Node): Node | null {
-  // Dart keeps the body next to the signature: method_signature { function_signature } function_body
-  let sig: Node = n;
-  while (sig.parent && /signature/.test(sig.parent.type)) sig = sig.parent;
-  if (sig.nextNamedSibling?.type === "function_body") return sig.nextNamedSibling;
-  return n.childForFieldName("body") ?? named(n).filter(isContainer).at(-1) ?? named(n).at(-1) ?? null;
+  return dartBody(n) ?? n.childForFieldName("body") ?? named(n).filter(isContainer).at(-1) ?? named(n).at(-1) ?? null;
 }
 
 function containerOfFunction(spec: LanguageSpec, n: Node): string | undefined {
@@ -404,17 +463,40 @@ function containerOfFunction(spec: LanguageSpec, n: Node): string | undefined {
   return undefined;
 }
 
+/** A selected statement that is essentially one function (`export function f…`, a decorated method): that function. */
+function soleFunction(spec: LanguageSpec, s: Node): Node | undefined {
+  if (spec.functions.includes(s.type)) return s;
+  const fn = s.descendantsOfType(spec.functions).find((x): x is Node => !!x);
+  if (!fn || isIterationCallback(fn)) return undefined;
+  // It must span the statement (give or take a decorator line and a closing token), not be a callback inside it.
+  return fn.startPosition.row <= s.startPosition.row + 3 && fn.endPosition.row >= s.endPosition.row - 1 ? fn : undefined;
+}
+
+function functionFlow(spec: LanguageSpec, fn: Node, path: string, resolve: CallResolver): FlowOutcome {
+  const name = functionLabel(fn);
+  const container = containerOfFunction(spec, fn);
+  const title = container ? `${container}.${name}` : name;
+  const b = new Builder(spec, path, container, resolve);
+  const entry = b.start(title, fn.startPosition.row + 1, `${path.slice(path.lastIndexOf("/") + 1)}:${fn.startPosition.row + 1}`);
+  const body = functionBody(fn);
+  const exits = b.walk(statementsOf(body), entry);
+  b.finish(exits);
+  return withWarning(done(b, title, path, `function ${name}`), body ?? fn);
+}
+
+/** A flow drawn from code that does not parse may be missing steps: say so, and where. */
+function withWarning(r: FlowOutcome, scope: Node): FlowOutcome {
+  if (!r.ok || !scope.hasError) return r;
+  const err = scope.descendantsOfType("ERROR").find((x): x is Node => !!x) ?? scope;
+  return { ...r, warning: `The code near line ${err.startPosition.row + 1} does not parse, so the flow may be incomplete.` };
+}
+
 export function buildFlow(spec: LanguageSpec, root: Node, text: string, path: string, req: FlowRequest, resolve: CallResolver): FlowOutcome {
+  if (!spec.functions.length) return { ok: false, reason: `Tracer cannot draw ${spec.name} flows yet.` };
   if (req.kind === "function") {
     const fn = functionNodeAt(spec, root, req.line, text, req.column);
-    if (!fn) return { ok: false, reason: "There is no function at the cursor." };
-    const name = nameOf(fn) ?? "function";
-    const container = containerOfFunction(spec, fn);
-    const b = new Builder(spec, path, container, resolve);
-    const entry = b.start(container ? `${container}.${name}` : name, fn.startPosition.row + 1, `${path.slice(path.lastIndexOf("/") + 1)}:${fn.startPosition.row + 1}`);
-    const exits = b.walk(statementsOf(functionBody(fn)), entry);
-    b.finish(exits);
-    return done(b, container ? `${container}.${name}` : name, path, `function ${name}`);
+    if (!fn) return { ok: false, reason: "There is no function at the cursor. Click inside a function and try again." };
+    return functionFlow(spec, fn, path, resolve);
   }
 
   // Selection: the statements it touches, inside the innermost block that contains it.
@@ -426,18 +508,21 @@ export function buildFlow(spec: LanguageSpec, root: Node, text: string, path: st
   const list = spec.functions.includes(scope.type) ? statementsOf(functionBody(scope)) : scope === root ? named(root) : statementsOf(scope);
   const picked = list.filter((s) => s.startPosition.row <= end.row && s.endPosition.row >= start.row);
   if (!picked.length) return { ok: false, reason: "The selection contains no statements." };
+  // A selected function (or its name, or its first line) means "this function", not "one statement".
+  const whole = picked.length === 1 && picked[0] ? soleFunction(spec, picked[0]) : undefined;
+  if (whole) return functionFlow(spec, whole, path, resolve);
   const fn = (() => {
     let p: Node | null = scope;
     while (p && !spec.functions.includes(p.type)) p = p.parent;
     return p ?? undefined;
   })();
   const container = fn ? containerOfFunction(spec, fn) : undefined;
-  const where = fn ? `${container ? `${container}.` : ""}${nameOf(fn) ?? "function"}` : path.slice(path.lastIndexOf("/") + 1);
+  const where = fn ? `${container ? `${container}.` : ""}${functionLabel(fn)}` : path.slice(path.lastIndexOf("/") + 1);
   const b = new Builder(spec, path, container, resolve);
   const entry = b.start(req.startLine === req.endLine ? `Line ${req.startLine}` : `Lines ${req.startLine}–${req.endLine}`, req.startLine, where);
   const exits = b.walk(picked, entry);
   b.finish(exits);
-  return done(b, `${where}: lines ${req.startLine}–${req.endLine}`, path, "selection");
+  return withWarning(done(b, `${where}: lines ${req.startLine}–${req.endLine}`, path, "selection"), scope);
 }
 
 function done(b: Builder, title: string, path: string, scope: string): FlowOutcome {

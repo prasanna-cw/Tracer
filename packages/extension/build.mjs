@@ -1,7 +1,7 @@
 // Builds the extension: two Node bundles (extension host + analyzer worker), the integration test suite,
 // the WASM parsers, and the web app as the webview bundle. Rebuild with `npm run build`.
 import { execSync } from "node:child_process";
-import { copyFileSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -38,7 +38,12 @@ const declared = [...readFileSync(resolve(repo, "packages/core/src/engine/langua
 const out = resolve(here, "dist/grammars");
 mkdirSync(out, { recursive: true });
 copyFileSync(require.resolve("web-tree-sitter/tree-sitter.wasm"), resolve(out, "tree-sitter.wasm"));
-for (const g of new Set(declared)) copyFileSync(resolve(grammarsDir, `tree-sitter-${g}.wasm`), resolve(out, `tree-sitter-${g}.wasm`));
+const vendoredDir = resolve(repo, "packages/core/grammars"); // overrides tree-sitter-wasms (see its README)
+for (const g of new Set(declared)) {
+  const file = `tree-sitter-${g}.wasm`;
+  copyFileSync(existsSync(resolve(vendoredDir, file)) ? resolve(vendoredDir, file) : resolve(grammarsDir, file), resolve(out, file));
+}
 console.log(`grammars: ${new Set(declared).size} + runtime -> dist/grammars`);
 
 execSync("npm run build:webview -w @tracer/app", { cwd: repo, stdio: "inherit" });
+copyFileSync(resolve(repo, "packages/core/grammars/LICENSE-tree-sitter-lua.md"), resolve(out, "LICENSE-tree-sitter-lua.md")); // MIT notice for the vendored Lua grammar

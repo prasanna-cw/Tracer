@@ -27,7 +27,13 @@ export function layoutFlow(nodes: DiagramNode[], edges: readonly DiagramEdge[], 
     if (!ids.has(e.fromNode) || !ids.has(e.toNode) || e.fromNode === e.toNode) continue;
     g.setEdge(e.fromNode, e.toNode, e.label ? { width: LABEL_W, height: LABEL_H, labelpos: "c" } : {}, e.id);
   }
-  dagre.layout(g);
+  try {
+    dagre.layout(g);
+  } catch (e) {
+    // dagre ranks recursively: a call chain thousands deep overflows the stack. Fall back to a plain grid.
+    if (!(e instanceof RangeError)) throw e;
+    return gridLayout(nodes, opts.nodeGap ?? 48, opts.rankGap ?? 64);
+  }
   let maxX = 0;
   let maxY = 0;
   for (const n of nodes) {
@@ -38,4 +44,21 @@ export function layoutFlow(nodes: DiagramNode[], edges: readonly DiagramEdge[], 
     maxY = Math.max(maxY, n.y + n.height);
   }
   return { width: maxX, height: maxY };
+}
+
+function gridLayout(nodes: DiagramNode[], gapX: number, gapY: number): { width: number; height: number } {
+  const cols = Math.max(1, Math.ceil(Math.sqrt(nodes.length)));
+  const cellW = Math.max(...nodes.map((n) => n.width)) + gapX;
+  let maxX = 0;
+  let y = 0;
+  for (let i = 0; i < nodes.length; i += cols) {
+    const row = nodes.slice(i, i + cols);
+    row.forEach((n, j) => {
+      n.x = j * cellW;
+      n.y = y;
+      maxX = Math.max(maxX, n.x + n.width);
+    });
+    y += Math.max(...row.map((n) => n.height)) + gapY;
+  }
+  return { width: maxX, height: y - gapY };
 }

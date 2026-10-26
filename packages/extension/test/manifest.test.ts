@@ -16,8 +16,9 @@ const { commands, menus, submenus } = manifest.contributes;
 describe("extension manifest", () => {
   it("the right-click menu appears for every language Tracer reads, and no others", () => {
     const when = menus["editor/context"]?.[0]?.when ?? "";
-    const re = new RegExp(/resourceExtname =~ \/(.*)\//.exec(when)?.[1] ?? "(?!)");
-    for (const ext of LANGUAGES.flatMap((l) => l.extensions)) expect(re.test(ext), ext).toBe(true);
+    const m = /resourceExtname =~ \/(.*)\/(\w*)/.exec(when);
+    const re = new RegExp(m?.[1] ?? "(?!)", m?.[2]);
+    for (const ext of LANGUAGES.flatMap((l) => l.extensions)) expect(re.test(ext) && re.test(ext.toUpperCase()), ext).toBe(true); // Windows: FOO.PY
     for (const ext of [".md", ".json", ".txt", ".html", ".canvas"]) expect(re.test(ext), ext).toBe(false);
   });
 

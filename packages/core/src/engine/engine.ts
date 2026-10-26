@@ -1,6 +1,6 @@
 import { Language, Parser, type Tree } from "web-tree-sitter";
 import { extractFacts, type FileFacts } from "./facts";
-import { buildFlow, type CallResolver, type FlowOutcome, type FlowRequest } from "./flow";
+import { buildFlow, functionAtCursor, type CallResolver, type FlowOutcome, type FlowRequest } from "./flow";
 import { languageForPath, type LangId, type LanguageSpec } from "./languages";
 
 /** Supplies WASM bytes by file name: "tree-sitter.wasm" (runtime) or "tree-sitter-<grammar>.wasm". */
@@ -61,6 +61,18 @@ export class Engine {
     if (!tree) return { ok: false, reason: `The ${spec.name} parser could not be loaded.` };
     try {
       return buildFlow(spec, tree.rootNode, text, path, req, resolve);
+    } finally {
+      tree.delete();
+    }
+  }
+
+  /** The function a cursor is in (same rules as a function flow): its first line and name. */
+  async functionAt(path: string, text: string, line: number, column?: number): Promise<{ line: number; name: string } | undefined> {
+    const spec = languageForPath(path);
+    const tree = spec && (await this.parse(spec, text));
+    if (!spec || !tree) return undefined;
+    try {
+      return functionAtCursor(spec, tree.rootNode, text, line, column);
     } finally {
       tree.delete();
     }

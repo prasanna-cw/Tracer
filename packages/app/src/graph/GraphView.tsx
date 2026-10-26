@@ -140,7 +140,7 @@ function GraphExplorer({ graph, theme, onOpenSource }: { graph: CodeGraph; theme
   const zoomBehavior = useRef<ZoomBehavior<HTMLCanvasElement, unknown> | null>(null);
   const hover = useRef<string | null>(null);
   const size = useRef({ w: 0, h: 0, dpr: 1 });
-  const scene = useRef<Omit<Scene, "nodes" | "links" | "colors" | "focus"> & { adjacency: Map<string, Set<string>> }>({
+  const scene = useRef<Omit<Scene, "nodes" | "links" | "colors" | "focus" | "fade"> & { adjacency: Map<string, Set<string>> }>({
     selectedId: null,
     matches: new Set(),
     cycleKeys: null,
@@ -150,7 +150,10 @@ function GraphExplorer({ graph, theme, onOpenSource }: { graph: CodeGraph; theme
   });
   const colors = useRef<{ theme: string | undefined; value: GraphColors } | null>(null);
   const frame = useRef(0);
+  const drawRef = useRef<() => void>(() => undefined);
   const shownSet = useRef<ReadonlySet<string> | null>(null);
+
+  const fade = useRef({ value: 0, last: null as { id: string; neighbors: ReadonlySet<string> } | null });
 
   const draw = useCallback(() => {
     frame.current = 0;
@@ -166,17 +169,45 @@ function GraphExplorer({ graph, theme, onOpenSource }: { graph: CodeGraph; theme
     const s = scene.current;
     const focusId = hover.current ?? s.selectedId;
     const nodes = e.placed ? e.nodes : []; // no pile of dots at the origin before the first layout frame
-    for (const n of nodes) n.color = themeColors.palette[n.colorIndex] ?? themeColors.text;
+    // Nodes glide to where the layout put them instead of jumping there; the highlight fades in and out.
+    const ease = reducedMotion() ? 1 : 0.22;
+    let moving = false;
+    for (const n of nodes) {
+      n.color = themeColors.palette[n.colorIndex] ?? themeColors.text;
+      if (n.tx === undefined || n.ty === undefined || n.x === undefined || n.y === undefined) continue;
+      const dx = n.tx - n.x;
+      const dy = n.ty - n.y;
+      if (Math.abs(dx) + Math.abs(dy) > 0.05) {
+        n.x += dx * ease;
+        n.y += dy * ease;
+        moving = true;
+      } else {
+        n.x = n.tx;
+        n.y = n.ty;
+      }
+    }
+    if (moving) e.tree = null;
+    const f = fade.current;
+    const target = focusId ? 1 : 0;
+    if (focusId) f.last = { id: focusId, neighbors: s.adjacency.get(focusId) ?? new Set() };
+    const step = reducedMotion() ? 1 : 0.18;
+    f.value = Math.abs(target - f.value) < 0.02 ? target : f.value + (target - f.value) * step;
+    const focus = focusId ? f.last : f.value > 0 ? f.last : null; // the last focus stays while it fades out
     drawGraph(ctx, size.current.w, size.current.h, size.current.dpr, transform.current, {
       ...s,
       nodes,
       links: e.placed ? e.links : [],
       colors: themeColors,
-      focus: focusId ? { id: focusId, neighbors: s.adjacency.get(focusId) ?? new Set() } : null,
+      focus,
+      fade: focus ? f.value : 1,
     });
+    if ((moving || f.value !== target) && !frame.current) frame.current = requestAnimationFrame(() => drawRef.current()); // keep animating
   }, []);
   const requestDraw = useCallback(() => {
-    if (!frame.current) frame.current = requestAnimationFrame(draw);
+    if (!frame.current) frame.current = requestAnimationFrame(() => drawRef.current());
+  }, []);
+  useEffect(() => {
+    drawRef.current = draw;
   }, [draw]);
 
   const fit = useCallback(() => {
@@ -212,8 +243,12 @@ function GraphExplorer({ graph, theme, onOpenSource }: { graph: CodeGraph; theme
       const { gen, positions } = ev.data;
       if (gen !== e.gen) return; // computed for a node set we have since replaced
       e.nodes.forEach((n, i) => {
-        n.x = positions[2 * i];
-        n.y = positions[2 * i + 1];
+        n.tx = positions[2 * i];
+        n.ty = positions[2 * i + 1];
+        if (!e.placed || n.x === undefined || n.y === undefined) {
+          n.x = n.tx; // the first frame (or a new file) appears in place; later frames glide
+          n.y = n.ty;
+        }
       });
       e.placed = true;
       e.tree = null; // hit-test index is rebuilt lazily on the next pointer event
@@ -333,8 +368,8 @@ function GraphExplorer({ graph, theme, onOpenSource }: { graph: CodeGraph; theme
         const index = e?.index.get(ev.subject.id);
         if (!e || index === undefined) return;
         const [x, y] = transform.current.invert(pointer(ev.sourceEvent, canvas));
-        ev.subject.x = x; // move it here right away; the worker pins it and pulls the neighbors along
-        ev.subject.y = y;
+        ev.subject.x = ev.subject.tx = x; // move it here right away; the worker pins it and pulls the neighbors along
+        ev.subject.y = ev.subject.ty = y;
         e.tree = null;
         requestDraw();
         e.worker.postMessage({ type: "drag", index, x, y } satisfies ToLayout);
