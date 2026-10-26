@@ -1,13 +1,14 @@
 {
   "name": "tracer-code-flow",
   "displayName": "Tracer: Code Flow & Map",
-  "description": "Trace your code: flow diagrams of files and functions, and a map and graph of the whole workspace. Runs locally: no network, no telemetry.",
-  "version": "0.0.4",
+  "description": "See how your code flows. Right-click a function for its flowchart, trace calls across files, and map a whole repository. 19 languages, 100% local: no AI, no network, no telemetry.",
+  "version": "0.0.5",
   "publisher": "PrasannaMurugan",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/prasanna-cw/Tracer.git"
+    "url": "https://github.com/prasanna-cw/Tracer.git",
+    "directory": "packages/extension"
   },
   "bugs": {
     "url": "https://github.com/prasanna-cw/Tracer/issues"
@@ -17,6 +18,8 @@
   },
   "categories": [
     "Visualization",
+    "Education",
+    "Programming Languages",
     "Other"
   ],
   "main": "./dist/extension.js",
@@ -232,7 +235,7 @@
   },
   "icon": "media/icon.png",
   "galleryBanner": {
-    "color": "#2b2470",
+    "color": "#1e1b3a",
     "theme": "dark"
   },
   "keywords": [
@@ -258,7 +261,14 @@
     "php",
     "ruby",
     "code understanding",
-    "tracer"
+    "tracer",
+    "flow diagram",
+    "code visualization",
+    "call hierarchy",
+    "understand code",
+    "architecture diagram",
+    "control flow graph",
+    "code explorer"
   ],
   "capabilities": {
     "untrustedWorkspaces": {
@@ -268,5 +278,7 @@
       "supported": false,
       "description": "Tracer reads source files from disk."
     }
-  }
+  },
+  "homepage": "https://github.com/prasanna-cw/Tracer#readme",
+  "qna": "https://github.com/prasanna-cw/Tracer/discussions"
 }

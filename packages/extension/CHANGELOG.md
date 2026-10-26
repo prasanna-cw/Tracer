@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.0.5
+
+- New Marketplace page: screenshots, feature tour, language table and privacy summary.
+- More search keywords and categories.
+
 ## 0.0.4
 
 - Show Flow no longer waits for the whole workspace to be read: the diagram appears at once, and calls into other files are linked as soon as the workspace is indexed (Trace Calls waits, with a cancel button).

@@ -6,6 +6,7 @@
 !dist/grammars/**
 !package.json
 !README.md
-!media/**
+!media/icon.png
+!media/tracer.svg
 !LICENSE
 !CHANGELOG.md

@@ -1,56 +1,96 @@
-# Tracer
+<div align="center">
 
-**See how your code flows.** Right-click a file or a function and get a clean flow diagram beside your code. Open the map to see how a whole workspace, from one repo to ten microservices, fits together.
+<img src="media/icon.png" alt="Tracer" width="96" />
 
-Works with TypeScript, JavaScript, Java, Kotlin, Python, Go, C#, Rust, C, C++, PHP, Ruby, Swift, Scala, Dart and Lua. Everything runs on your machine: no AI, no network, no telemetry.
+# Tracer: Code Flow & Map
 
-## What you can do
+**Understand any code in seconds. Right-click a function, see its flow.**
+
+Flowcharts of your functions, the call chain across files, and an interactive map of your whole repository, in 19 languages, built right into VS Code.
+
+![Installs](https://img.shields.io/visual-studio-marketplace/i/PrasannaMurugan.tracer-code-flow?label=installs&color=6d5dfc)
+![Rating](https://img.shields.io/visual-studio-marketplace/r/PrasannaMurugan.tracer-code-flow?color=6d5dfc)
+![Version](https://img.shields.io/visual-studio-marketplace/v/PrasannaMurugan.tracer-code-flow?color=6d5dfc)
+![License](https://img.shields.io/github/license/prasanna-cw/Tracer?color=6d5dfc)
+
+**100% local. No AI. No network. No telemetry.**
+
+</div>
+
+![A function's control flow, drawn beside the code](media/screenshots/flow.png)
+
+## Why Tracer
+
+Reading unfamiliar code means holding branches, loops and calls in your head. Tracer draws them for you, from the code itself, so a pull request, a legacy method or a new microservice makes sense in a minute instead of an hour.
+
+- **No setup.** Install, right-click, done. No configuration, no account, no API key.
+- **Private by design.** Your code never leaves your machine. Tracer makes no network requests at all, and uses no AI service.
+- **Any language, any size.** 19 languages, 10-service workspaces, files of 15,000 lines.
+- **Fast.** The diagram appears immediately; a 15,000-line file takes well under a second.
+- **Yours to keep.** Save a diagram as a `.diagram.json` file, edit it, or export PNG, SVG and JSON Canvas.
+
+## Features
+
+### Show Flow of a function
+
+Put the cursor in a function, right-click, **Tracer → Show Flow**. You get its `if`/`else`, loops (with the back-edge), `switch`/`match`, `try`/`catch`/`finally`, `return` and `throw`, one card per step. Calls that resolve to code in your workspace link to their definition: click the card, then **Open source**.
+
+![Flow of a function](media/screenshots/flow.png)
+
+Select a few lines and run **Show Flow** to draw just those lines.
+
+### Trace calls across files
+
+**Tracer → Trace Calls From This Function** follows the call chain through your workspace (Controller → Service → Repository), coloured by role, up to the depth you set.
+
+![Call trace across files](media/screenshots/trace.png)
+
+### File overview
+
+Right-click a file in the explorer for a map of its functions: who calls whom inside the file, and what it reaches in other files.
+
+![File overview](media/screenshots/file-overview.png)
+
+### Map your repository
+
+Open the **Tracer** icon in the activity bar, or run **Tracer: Open Map**. Folders are cards; click one to open or close it. Imports between folders are rolled up with a count (`app → core: 15`). Click a file to light up what it imports and what imports it. Services (a `package.json`, `pom.xml`, `go.mod`, `*.csproj`…) are marked automatically, which makes a ten-service workspace readable at a glance.
+
+![Workspace map](media/screenshots/map.png)
+
+### The graph
+
+The **Graph** tab is the free-moving view of every file: hover to highlight neighbours, drag to rearrange, search, hide tests and orphans, highlight import cycles. It glides smoothly even with thousands of files.
+
+![Import graph](media/screenshots/graph.png)
+
+### Light and dark
+
+Diagrams follow your VS Code theme, or force one with the `tracer.theme` setting.
+
+![Light theme](media/screenshots/flow-light.png)
+
+## Get started in 30 seconds
+
+1. Install Tracer and open a project.
+2. Open a code file and click inside a function.
+3. Right-click → **Tracer → Show Flow**.
 
 | I want to… | Do this |
 | --- | --- |
-| Understand a file | Right-click in the editor → **Tracer → Show Flow** |
-| Understand one function | Put the cursor in it → right-click → **Tracer → Show Flow of This Function** |
-| Understand a few lines | Select them → right-click → **Tracer → Show Flow** |
-| See what a function ends up calling | Cursor in it → **Tracer → Trace Calls From This Function** |
-| See how a repo or folder is organised | Click the **Tracer** icon in the activity bar, or run **Tracer: Open Map** |
-| See files as a moving dot graph | Open the map, then the **Graph** tab |
-| Flow for a file from the explorer | Right-click the file in the explorer → **Tracer → Show Flow** |
+| Understand a function | Cursor in it → right-click → **Tracer → Show Flow** |
+| Understand a few lines | Select them → **Tracer → Show Flow** |
+| See what a function ends up calling | **Tracer → Trace Calls From This Function** |
+| Understand a file | Right-click it in the explorer → **Tracer → Show Flow** |
+| See how a repo is organised | **Tracer** icon in the activity bar, or **Tracer: Open Map** |
+| Keep a diagram | **Save** in the flow panel (writes `*.diagram.json`) |
 
-## Quick start
+## Languages
 
-1. Install Tracer and open any project folder.
-2. Open a code file and put the cursor inside a function.
-3. Right-click → **Tracer → Show Flow of This Function**.
-4. The diagram opens to the right of your code. Click any card to see its details, and **Open source** to jump to that line.
-
-## Reading a flow
-
-- **Rounded top card**: the function and where it lives.
-- **Dashed card**: a decision (`if`, `switch`, a loop condition). Its arrows are labelled `yes` / `no` or with the case.
-- **Plain cards**: steps. A call that resolves to code in your workspace shows `→ Class.method  File.ext:line`; click the card and **Open source** to go there.
-- **Red cards**: `throw` / `raise` and other ways out.
-- Loops draw an arrow back to the loop, `try` / `catch` / `finally` become branches.
-
-Flows show the **structure** of the code. Nothing is guessed or written for you.
-
-## The map
-
-Open it from the activity bar icon or **Tracer: Open Map**.
-
-- It starts on the workspace and its biggest folders. **Click a folder** to open or close it.
-- Arrows between folders and files show imports, with counts when many are rolled up (`app → core: 15`).
-- **Click a file** to light up what it imports and what imports it; everything else dims. The details panel lists them, and each is clickable.
-- **Find a file** opens the folders on the way to it.
-- Folders that look like a service (they hold a `package.json`, `pom.xml`, `go.mod`, `*.csproj`, …) are marked with their build system.
-- Big folders show 30 items and a **+ N more** card.
-- The **Graph** tab is the free-moving dot view: hover to highlight neighbours, drag to move, search, hide tests or orphans, highlight cycles. Layout options are tucked into **Layout settings**.
-
-## Saving and sharing
-
-- **Save** (Ctrl+S in the flow) writes a `*.diagram.json` next to your code. You can keep it, edit the text, and add notes. Double-click a card's text to edit it.
-- Open any `*.diagram.json` or `*.canvas` (JSON Canvas) file and it opens in the Tracer editor. Right-click the tab → *Reopen Editor With…* for the text.
-- **Walkthrough** steps through a diagram one card at a time. **Export** gives PNG, SVG or `.canvas`.
-- The **⋯** menu holds Snap (align cards to a grid) and Minimap (small overview in the corner).
+| Depth | Languages |
+| --- | --- |
+| **Deep**: flows, calls and imports linked across files | TypeScript, JavaScript (JSX/TSX), Java, Kotlin, Python, Go, C# |
+| **Standard**: functions, calls, imports, control flow | Rust, C, C++, PHP, Ruby, Swift, Scala, Dart, Lua, Zig |
+| **Any other file** | Shown in the map and graph |
 
 ## Settings
 
@@ -59,36 +99,44 @@ Open it from the activity bar icon or **Tracer: Open Map**.
 | `tracer.theme` | `auto` | `auto` follows VS Code; or force `light` / `dark` |
 | `tracer.flow.traceDepth` | `4` | How many call levels **Trace Calls** follows (1–8) |
 
-## Good to know
+## Reading a flow
 
-- Control flow is read from the code's syntax. Lambdas and callbacks are shown as steps, not followed.
-- A call is linked to its definition by name and receiver. Very common names (`get`, `add`, …) and ambiguous matches are left unlinked rather than guessed.
-- Calls between services over HTTP or gRPC are not linked.
-- Dart support is partial.
-- Large workspaces: the first analysis of about 6,000 files takes about 12 seconds; after that, opening the map and a flow take well under a second.
+- **Rounded top card**: the function and where it lives.
+- **Dashed card**: a decision (`if`, `switch`, a loop). Arrows are labelled `yes` / `no`, the case, `each`, `done`.
+- **Plain cards**: steps. A resolved call shows `→ Class.method  File.ext:line`.
+- **Red cards**: `throw` / `raise` and error paths.
+
+Flows show the **structure** of your code. Nothing is guessed or written for you.
 
 ## Privacy and permissions
 
+Tracer is built so you can run it on code you cannot share.
+
 | | |
 | --- | --- |
-| Network | **None.** The extension makes no requests, and its webview's Content-Security-Policy allows no `http(s)` source. No remote scripts, fonts or images. |
-| AI / telemetry | **None.** No AI service is used and nothing is collected or sent. |
+| Network | **None.** No requests; the webview's Content-Security-Policy allows no `http(s)` source. No remote scripts, fonts or images. |
+| AI / telemetry | **None.** Nothing is collected or sent. |
 | Activation | Only when you open the Tracer view, run one of its commands, or open a `*.diagram.json` / `*.canvas` file. |
-| Files read | The source files, build manifests (`package.json`, `pom.xml`, `go.mod`, …), `tsconfig.json` and the root `.gitignore` of your workspace folder, skipping `node_modules`, `dist`, `build`, `.git`, `coverage`. Read in a worker thread; kept in memory only. |
-| Files written | A flow document only when you save it (through VS Code). Exports only where you choose in a save dialog. |
-| Files opened | **Open source** opens a file only if it is inside a workspace folder: no absolute paths, no `..`. |
-| Webview | Loads files only from the extension's own folder; scripts need a per-load nonce; every message to and from the extension is schema-validated. |
-| Output | Summaries and warnings go to the **Tracer** output channel, locally. |
+| Files read | Source files, build manifests, `tsconfig.json` and the root `.gitignore` of your workspace, skipping `node_modules`, `dist`, `build`, `.git`, virtual environments and other caches. Kept in memory only. |
+| Files written | A diagram only when you save it. Exports only where you choose. |
+| Files opened | **Open source** opens files inside the workspace only. |
+| Restricted Mode | Works in untrusted workspaces: it only reads files. |
+
+## Good to know
+
+- Control flow is read from the code's syntax. Lambdas and callbacks passed to `map`, `forEach`, `each` read as part of their function; other callbacks (route handlers, hooks, tests) get flows of their own.
+- Calls are linked to definitions by name and receiver. Very common names (`get`, `add`…) and ambiguous matches are left unlinked rather than guessed.
+- Calls between services over HTTP or gRPC are not linked.
+- Very large files: the overview shows the first 60 functions and says how many more there are.
+- Elixir files appear in the map and graph; their flows are not drawn yet.
 
 ## Troubleshooting
 
-- **No Tracer entry in the right-click menu**: the file's language may not be supported yet, or the extension has not activated: reload the window (Ctrl+Shift+P → *Developer: Reload Window*).
-- **A "Tracer: …" message says no flow was found**: the cursor is probably not inside a function. Click inside one and try again.
-- **A call isn't linked**: its name is common or matches several functions. Open the **Tracer** output channel (View → Output) for details.
-- **Map looks stale after big changes**: run **Tracer: Refresh**.
+- **No Tracer entry in the right-click menu**: the file type may not be supported, or reload the window (Ctrl+Shift+P → *Developer: Reload Window*).
+- **"There is no function at the cursor"**: click inside a function and try again.
+- **Calls into other files are not linked on the first flow**: Tracer is still reading a large workspace in the background. Run Show Flow again in a moment.
+- **Anything else**: open the **Tracer** output channel (View → Output) and [report it](https://github.com/prasanna-cw/Tracer/issues/new?template=bug_report.md) with a small code sample.
 
-## Install from a file
+## Feedback and contributing
 
-```powershell
-code --install-extension tracer.vsix
-```
+Tracer is open source (MIT): [github.com/prasanna-cw/Tracer](https://github.com/prasanna-cw/Tracer). Bug reports, ideas and pull requests are welcome; see [CONTRIBUTING](https://github.com/prasanna-cw/Tracer/blob/main/CONTRIBUTING.md). If Tracer saves you time, a ⭐ on GitHub and a rating on the Marketplace help others find it.
