@@ -43,7 +43,7 @@ export class FlowCommands {
   }
 
   private fail(reason: string): FlowCommandResult {
-    void vscode.window.showInformationMessage(`Tracer: ${reason}`);
+    void vscode.window.showWarningMessage(`Tracer: ${reason}`);
     return { ok: false, reason };
   }
 

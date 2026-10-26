@@ -55,6 +55,14 @@ describe("flow semantics", () => {
   };
   const edgesOf = (d: Diagram) => d.edges.map((e) => `${d.nodes.find((n) => n.id === e.fromNode)?.title} -${e.label ?? ""}-> ${d.nodes.find((n) => n.id === e.toNode)?.title}`);
 
+  it("a cursor on the modifier line of a function (export, async, @decorator) still finds the function", async () => {
+    const code = ["// header", "export async function f(x) {", "  if (x) { a(); }", "}", ""].join("\n");
+    const { diagram } = await flow(code, { kind: "function", line: 2, column: 0 });
+    expect(diagram.nodes[0]?.title).toBe("f");
+    const above = await flow(["@Get()", "function f(x) {", "  a();", "}", ""].join("\n"), { kind: "function", line: 1, column: 0 });
+    expect(above.diagram.nodes[0]?.title).toBe("f");
+  });
+
   it("an if without else falls through on 'no'; the then branch falls through too", async () => {
     const { diagram } = await flow(ts("if (a) { b(); }\nc();"));
     expect(edgesOf(diagram).sort()).toEqual(["a -no-> c()", "a -yes-> b()", "b() --> c()", "f --> a"]);

@@ -2,7 +2,7 @@
   "name": "tracer-code-flow",
   "displayName": "Tracer: Code Flow & Map",
   "description": "Trace your code: flow diagrams of files and functions, and a map and graph of the whole workspace. Runs locally: no network, no telemetry.",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "publisher": "PrasannaMurugan",
   "license": "MIT",
   "repository": {
