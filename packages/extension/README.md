@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="media/icon.png" alt="Tracer" width="96" />
+<img src="https://raw.githubusercontent.com/prasanna-cw/Tracer/main/packages/extension/media/icon.png" alt="Tracer" width="96" />
 
 # Tracer: Code Flow & Map
 
@@ -17,7 +17,7 @@ Flowcharts of your functions, the call chain across files, and an interactive ma
 
 </div>
 
-![A function's control flow, drawn beside the code](media/screenshots/flow.png)
+![A function's control flow, drawn beside the code](https://raw.githubusercontent.com/prasanna-cw/Tracer/main/packages/extension/media/screenshots/flow.png)
 
 ## Why Tracer
 
@@ -35,7 +35,7 @@ Reading unfamiliar code means holding branches, loops and calls in your head. Tr
 
 Put the cursor in a function, right-click, **Tracer → Show Flow**. You get its `if`/`else`, loops (with the back-edge), `switch`/`match`, `try`/`catch`/`finally`, `return` and `throw`, one card per step. Calls that resolve to code in your workspace link to their definition: click the card, then **Open source**.
 
-![Flow of a function](media/screenshots/flow.png)
+![Flow of a function](https://raw.githubusercontent.com/prasanna-cw/Tracer/main/packages/extension/media/screenshots/flow.png)
 
 Select a few lines and run **Show Flow** to draw just those lines.
 
@@ -43,31 +43,31 @@ Select a few lines and run **Show Flow** to draw just those lines.
 
 **Tracer → Trace Calls From This Function** follows the call chain through your workspace (Controller → Service → Repository), coloured by role, up to the depth you set.
 
-![Call trace across files](media/screenshots/trace.png)
+![Call trace across files](https://raw.githubusercontent.com/prasanna-cw/Tracer/main/packages/extension/media/screenshots/trace.png)
 
 ### File overview
 
 Right-click a file in the explorer for a map of its functions: who calls whom inside the file, and what it reaches in other files.
 
-![File overview](media/screenshots/file-overview.png)
+![File overview](https://raw.githubusercontent.com/prasanna-cw/Tracer/main/packages/extension/media/screenshots/file-overview.png)
 
 ### Map your repository
 
 Open the **Tracer** icon in the activity bar, or run **Tracer: Open Map**. Folders are cards; click one to open or close it. Imports between folders are rolled up with a count (`app → core: 15`). Click a file to light up what it imports and what imports it. Services (a `package.json`, `pom.xml`, `go.mod`, `*.csproj`…) are marked automatically, which makes a ten-service workspace readable at a glance.
 
-![Workspace map](media/screenshots/map.png)
+![Workspace map](https://raw.githubusercontent.com/prasanna-cw/Tracer/main/packages/extension/media/screenshots/map.png)
 
 ### The graph
 
 The **Graph** tab is the free-moving view of every file: hover to highlight neighbours, drag to rearrange, search, hide tests and orphans, highlight import cycles. It glides smoothly even with thousands of files.
 
-![Import graph](media/screenshots/graph.png)
+![Import graph](https://raw.githubusercontent.com/prasanna-cw/Tracer/main/packages/extension/media/screenshots/graph.png)
 
 ### Light and dark
 
 Diagrams follow your VS Code theme, or force one with the `tracer.theme` setting.
 
-![Light theme](media/screenshots/flow-light.png)
+![Light theme](https://raw.githubusercontent.com/prasanna-cw/Tracer/main/packages/extension/media/screenshots/flow-light.png)
 
 ## Get started in 30 seconds
 
