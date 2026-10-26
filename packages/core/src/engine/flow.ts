@@ -384,7 +384,7 @@ function functionNodeAt(spec: LanguageSpec, root: Node, line: number, text: stri
   // The cursor is on a modifier or decorator line (`export`, `async`, `public`, `@Get()`), just outside the node:
   // take the first function that starts on this line or within the next two.
   const found = root.descendantsOfType(spec.functions, { row, column: 0 }, { row: row + 2, column: 1000 });
-  return found.filter((f) => nameOf(f)).sort((a, b) => a.startPosition.row - b.startPosition.row || a.startIndex - b.startIndex)[0];
+  return found.filter((f): f is Node => f !== null && !!nameOf(f)).sort((a, b) => a.startPosition.row - b.startPosition.row || a.startIndex - b.startIndex)[0];
 }
 
 function functionBody(n: Node): Node | null {
