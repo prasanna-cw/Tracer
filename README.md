@@ -24,7 +24,7 @@ npm run dev    # then open the Graph tab (or http://localhost:5173/#graph)
 The analyzer reads TypeScript and JavaScript (`.ts .tsx .js .jsx .mjs .cjs`), resolves each file against its nearest `tsconfig.json` (`paths`, `baseUrl`, `extends`; per-package in a monorepo), honors the root `.gitignore`, and skips `node_modules`, `dist`, `build`, `.git`, `coverage`. It prints a summary:
 
 ```text
-files       25 (+1 skipped)
+files       26 (+1 skipped)
 edges       29
 unresolved  3
 external    5
@@ -38,7 +38,11 @@ time        135 ms
 - **assets**: existing non-code files (`./app.css`).
 - **skipped**: files with syntax errors (a warning names the line).
 
+Markdown docs (`.md`/`.mdx`) and docker-compose files are indexed too, and linked into the same graph: a doc's relative link or a code span naming one function or type links to that file; a compose service's `depends_on` on another local service becomes an edge. Both appear in the file count above.
+
 `packages/app/public/graph.json` is git-ignored. Without it, the Graph tab shows `samples/demo-graph.json`, the committed analysis of `samples/demo-repo`. Regenerate that with `npm run analyze:demo`; a test fails if it is stale.
+
+Repeat analyses are cached on disk (`~/.tracer/cache`, keyed by file size and modification time): an unchanged file skips both the read and the parse, so re-analyzing a workspace you've already indexed only redoes what actually changed. Shared between the CLI, the VS Code extension, and Show Flow's own index.
 
 ## Graph view
 
@@ -96,7 +100,7 @@ Then, in VS Code:
   - **Trace Calls From This Function**: the call tree across files (Controller → Service → Repository), coloured by role.
   - The diagram opens **beside** your code and is editable; **Save** writes a `.diagram.json` you can keep and annotate.
   - Also in the explorer: right-click a file for **Show Flow**, a folder for **Open Map** or **Open Graph**.
-- **Tracer: Open Map** (or the Tracer icon in the activity bar): the workspace as an interactive diagram. It opens on the workspace and its biggest folders; **click a folder to open or close it**, and the imports between whatever is visible are rolled up with a count (`app → core: 15`). Click a file to light up just its imports and importers (everything else dims) and see its details. **Find a file** opens the folders on the way to it. Big folders show 30 items and a "+ N more" card. Services (folders with a `package.json`, `pom.xml`, `go.mod`, …) are marked with their build system. The **Graph** tab next to it is the free-moving dot view.
+- **Tracer: Open Map** (or the Tracer icon in the activity bar): the workspace as an interactive diagram. It opens on the workspace and its biggest folders; **click a folder to open or close it**, and the imports between whatever is visible are rolled up with a count (`app → core: 15`). Click a file to light up just its imports and importers (everything else dims) and see its details. **Find a file** opens the folders on the way to it. Big folders show 30 items and a "+ N more" card. Services (folders with a `package.json`, `pom.xml`, `go.mod`, …) are marked with their build system. The **Graph** tab next to it is the free-moving dot view. Both refresh automatically as you edit and save; no need to reopen the view.
 - open any `*.diagram.json` or `*.canvas`: it opens in the **Tracer Flow** editor (right-click the tab, "Reopen Editor With…" for the text);
 - the **Tracer** icon in the activity bar, or the Command Palette: **Tracer: Open Graph**, **Tracer: Open Saved Flow…**;
 - setting **tracer.theme**: `auto` (match VS Code), `light`, `dark`; **tracer.flow.traceDepth** (1-8, default 4).
@@ -107,7 +111,7 @@ To uninstall: `code --uninstall-extension PrasannaMurugan.tracer-code-flow`.
 
 Develop: open this repo in VS Code and press **F5** ("Run Tracer extension": builds, then opens `samples/demo-repo` in an Extension Development Host). Integration tests in a real VS Code: `npm run test:vscode` (downloads VS Code, about 350 MB, on first run).
 
-**Permissions and data handling** (details in `packages/extension/README.md`): no network access and no telemetry; activates only on its commands or when a diagram file is opened; reads the diagram you open and, for the graph, the source files, `tsconfig.json`/`package.json` and `.gitignore` of the first workspace folder; writes only the document (through VS Code) and exports you place in a save dialog; opens source files only inside the workspace.
+**Permissions and data handling** (details in `packages/extension/README.md`): no network access and no telemetry; activates only on its commands or when a diagram file is opened; reads the diagram you open and, for the graph, the source files, Markdown docs, docker-compose files, `tsconfig.json`/`package.json` and `.gitignore` of the first workspace folder; writes only the document (through VS Code) and exports you place in a save dialog; opens source files only inside the workspace.
 
 ## Samples
 

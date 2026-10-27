@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.0.6
+
+- Map and Graph refresh automatically while they're open: edit and save, and the diagram updates in place, no need to reopen the view.
+- Analysis is cached on disk, so opening Map/Graph again on a workspace you've already analyzed is instant instead of a full re-scan; only changed files are reparsed.
+- Markdown docs (`.md`) now appear in the map and graph, linked to the code they reference: a relative link, or a code span naming one function or type declared in exactly one file.
+- `docker-compose.yml` (and `compose.yml`, override files) are linked to the services they build; a `depends_on` between two local services becomes an edge in the graph.
+
 ## 0.0.5
 
 - New Marketplace page: screenshots, feature tour, language table and privacy summary.

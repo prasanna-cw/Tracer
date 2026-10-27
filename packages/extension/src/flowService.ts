@@ -28,9 +28,10 @@ export type FlowResult =
   | { ok: true; diagram: Diagram; truncated: boolean; root: vscode.Uri; partial: boolean; warning?: string }
   | { ok: false; reason: string; cancelled?: true };
 
-const SOURCE_GLOB = `**/*.{${LANGUAGES.flatMap((l) => l.extensions.map((e) => e.slice(1))).join(",")}}`;
+/** Every source extension Tracer reads, for a file watcher glob. Shared with graphPanel's live refresh. */
+export const SOURCE_GLOB = `**/*.{${LANGUAGES.flatMap((l) => l.extensions.map((e) => e.slice(1))).join(",")}}`;
 // Matched against the path inside the workspace, so a workspace that itself lives under `build/` still refreshes.
-const IGNORED = /(^|[\\/])(node_modules|dist|build|\.git|coverage|target|vendor|__pycache__|\.venv|venv|site-packages|\.tox|\.next|\.nuxt|\.gradle)([\\/]|$)/;
+export const IGNORED = /(^|[\\/])(node_modules|dist|build|\.git|coverage|target|vendor|__pycache__|\.venv|venv|site-packages|\.tox|\.next|\.nuxt|\.gradle)([\\/]|$)/;
 const toPosix = (p: string): string => p.split("\\").join("/");
 const NO_INDEX = new Map<string, IndexedFile>();
 

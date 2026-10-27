@@ -79,6 +79,13 @@ export class VSCodeHost implements HostAdapter {
     this.graph ??= this.call("loadGraph", {});
     return this.graph;
   }
+  onGraphChanged(listener: (graph: CodeGraph) => void): () => void {
+    return this.on((e) => {
+      if (e.type !== "graphUpdated") return;
+      this.graph = Promise.resolve(e.graph); // so a Map/Graph tab opened later starts from the latest, not a stale loadGraph
+      listener(e.graph);
+    });
+  }
   async openSource(path: string, line?: number): Promise<void> {
     await this.call("openSource", line ? { path, line } : { path });
   }

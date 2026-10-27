@@ -2,7 +2,7 @@
   "name": "tracer-code-flow",
   "displayName": "Tracer: Code Flow & Map",
   "description": "See how your code flows. Right-click a function for its flowchart, trace calls across files, and map a whole repository. 19 languages, 100% local: no AI, no network, no telemetry.",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "publisher": "PrasannaMurugan",
   "license": "MIT",
   "repository": {

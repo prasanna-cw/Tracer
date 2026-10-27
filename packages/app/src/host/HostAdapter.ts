@@ -25,6 +25,8 @@ export interface HostAdapter {
   /** The document changed outside the app (undo/redo, another editor, a save from Obsidian). Returns unsubscribe. */
   onDocumentChanged?(listener: (id: string, diagram: Diagram) => void): () => void;
   onDocumentInvalid?(listener: (id: string, errors: string[]) => void): () => void;
+  /** Map/Graph: a source file changed on disk and the workspace was re-analyzed. */
+  onGraphChanged?(listener: (graph: CodeGraph) => void): () => void;
   /** `native`: use the host's own colors (VS Code theme) instead of Tracer's palette for the chrome. */
   onThemeChanged?(listener: (theme: ThemeName, native: boolean) => void): () => void;
   reportStatus?(status: Params<"reportStatus">): void;

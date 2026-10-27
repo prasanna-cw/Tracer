@@ -1,7 +1,7 @@
 // Integration tests, run inside a real VS Code by @vscode/test-electron (see runTests.ts).
 // Workspace: samples/polyglot (so Show Flow resolves calls across its services). A tiny harness instead of mocha: run each test, report, fail if any failed.
 import * as assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { cpSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import * as vscode from "vscode";
@@ -49,6 +49,39 @@ export async function run(): Promise<void> {
       [25, 1, 29, 3, 5, 1],
     );
     await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  await test("Open Graph live-refreshes when a file is added, without rerunning the command", async () => {
+    // Under the open workspace folder, not an external temp dir: VS Code's recursive watcher does not
+    // reliably cover paths outside the workspace, so a folder out there would never see the change land.
+    const base = vscode.workspace.workspaceFolders?.[0]?.uri;
+    assert.ok(base, "no workspace folder is open");
+    const dir = join(base.fsPath, "tracer-live-tmp");
+    try {
+      cpSync(join(repo, "samples", "demo-repo"), dir, { recursive: true });
+      const uri = vscode.Uri.file(dir);
+      const key = uri.toString();
+
+      const summary = await vscode.commands.executeCommand<CodeGraphSummary | undefined>("tracer.openGraph", uri);
+      assert.ok(summary, "the command returned no summary");
+      assert.equal(ext.exports.statusOf(key)?.nodeCount, summary.fileCount);
+
+      writeFileSync(join(dir, "src", "extra.ts"), "export const extra = 1;\n");
+      const refreshed = await waitFor(
+        "the background refresh to see the new file",
+        () => {
+          const s = ext.exports.statusOf(key);
+          return s && s.nodeCount === summary.fileCount + 1 ? s : undefined;
+        },
+        15_000,
+      );
+      assert.equal(refreshed.state, "loaded");
+
+      await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+      assert.equal(ext.exports.statusOf(key), undefined, "the status is cleared once the panel closes");
+    } finally {
+      rmSync(dir, { recursive: true, force: true }); // never leaves extra files for "analyzes every language" to count
+    }
   });
 
   await test("Open Graph on the workspace analyzes every language (samples/polyglot: 10 services, 10 languages)", async () => {

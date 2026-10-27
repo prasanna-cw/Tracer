@@ -63,6 +63,12 @@ The **Graph** tab is the free-moving view of every file: hover to highlight neig
 
 ![Import graph](https://raw.githubusercontent.com/prasanna-cw/Tracer/main/packages/extension/media/screenshots/graph.png)
 
+Map and Graph stay current: edit and save a file, and the open view updates on its own, no need to reopen it. Repeat opens of a workspace you've already analyzed are near-instant too, since unchanged files are never reparsed.
+
+### Docs and docker-compose, linked in
+
+Markdown files and docker-compose files show up in the map and graph alongside your code. A doc's relative link, or a code span naming one function or type, links to that file. A compose service's `depends_on` on another local service becomes an edge, so your deployment shape sits next to your import graph.
+
 ### Light and dark
 
 Diagrams follow your VS Code theme, or force one with the `tracer.theme` setting.
@@ -117,7 +123,7 @@ Tracer is built so you can run it on code you cannot share.
 | Network | **None.** No requests; the webview's Content-Security-Policy allows no `http(s)` source. No remote scripts, fonts or images. |
 | AI / telemetry | **None.** Nothing is collected or sent. |
 | Activation | Only when you open the Tracer view, run one of its commands, or open a `*.diagram.json` / `*.canvas` file. |
-| Files read | Source files, build manifests, `tsconfig.json` and the root `.gitignore` of your workspace, skipping `node_modules`, `dist`, `build`, `.git`, virtual environments and other caches. Kept in memory only. |
+| Files read | Source files, build manifests, Markdown docs, docker-compose files, `tsconfig.json` and the root `.gitignore` of your workspace, skipping `node_modules`, `dist`, `build`, `.git`, virtual environments and other caches. Kept in memory, plus a per-file cache on disk (`~/.tracer/cache`) so a repeat analysis skips unchanged files — never your source text itself, just enough (size, modification time, extracted facts) to know what changed. |
 | Files written | A diagram only when you save it. Exports only where you choose. |
 | Files opened | **Open source** opens files inside the workspace only. |
 | Restricted Mode | Works in untrusted workspaces: it only reads files. |
@@ -126,7 +132,7 @@ Tracer is built so you can run it on code you cannot share.
 
 - Control flow is read from the code's syntax. Lambdas and callbacks passed to `map`, `forEach`, `each` read as part of their function; other callbacks (route handlers, hooks, tests) get flows of their own.
 - Calls are linked to definitions by name and receiver. Very common names (`get`, `add`…) and ambiguous matches are left unlinked rather than guessed.
-- Calls between services over HTTP or gRPC are not linked.
+- Calls between services over HTTP or gRPC are not linked; a docker-compose `depends_on` between two services with a local `build:` is, but only that — Kubernetes, Terraform and similar infra-as-code formats are not read yet.
 - Very large files: the overview shows the first 60 functions and says how many more there are.
 - Elixir files appear in the map and graph; their flows are not drawn yet.
 

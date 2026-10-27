@@ -25,7 +25,7 @@ describe("analyzer on samples/monorepo (nearest tsconfig per file)", () => {
       "packages/web/src/main.tsx -> packages/web/src/components/Header.tsx",
       "scripts/build.mjs -> scripts/util.mjs", // root tsconfig (allowJs)
     ]);
-    expect(m.summary).toMatchObject({ fileCount: 10, edgeCount: 8, unresolvedCount: 0, externalCount: 0, warnings: [] });
+    expect(m.summary).toMatchObject({ fileCount: 11, edgeCount: 8, unresolvedCount: 0, externalCount: 0, warnings: [] }); // +1: README.md, now indexed as a doc node
   });
 
   it("lists the workspace packages", () => {
@@ -36,7 +36,7 @@ describe("analyzer on samples/monorepo (nearest tsconfig per file)", () => {
 describe("analyzer on samples/demo-repo", () => {
   it("summary has the exact expected counts", () => {
     expect(g.summary).toMatchObject({
-      fileCount: 25,
+      fileCount: 26, // +1: README.md, now indexed as a doc node
       skippedCount: 1,
       edgeCount: 29,
       unresolvedCount: 3,
@@ -94,7 +94,7 @@ describe("analyzer on samples/demo-repo", () => {
 
   it("fills node metadata (folder, ext, loc, degrees)", () => {
     const orphans = g.nodes.filter((n) => n.inDegree + n.outDegree === 0).map((n) => n.path);
-    expect(orphans).toEqual(["src/broken/missing.ts", "src/orphan.ts"]);
+    expect(orphans).toEqual(["README.md", "src/broken/missing.ts", "src/orphan.ts"]); // README.md: a doc node with no links/code-spans matching this repo
     expect(g.nodes.find((n) => n.path === "src/core/format.ts")).toMatchObject({
       folder: "src/core",
       ext: "ts",
@@ -102,7 +102,7 @@ describe("analyzer on samples/demo-repo", () => {
       inDegree: 4,
       outDegree: 1,
     });
-    expect(new Set(g.nodes.map((n) => n.ext))).toEqual(new Set(["ts", "tsx", "js", "jsx", "mjs", "cjs"]));
+    expect(new Set(g.nodes.map((n) => n.ext))).toEqual(new Set(["ts", "tsx", "js", "jsx", "mjs", "cjs", "md"]));
   });
 
   it("the committed samples/demo-graph.json is up to date (run `npm run analyze:demo` if this fails)", () => {
@@ -144,7 +144,7 @@ describe("analyzer on samples/polyglot (10 services, 10 languages)", () => {
       "users-python/app/routes/users.py -> users-python/app/models.py",
       "web-ts/src/main.ts -> web-ts/src/api.ts",
     ]);
-    expect(p.summary).toMatchObject({ fileCount: 34, unresolvedCount: 0, skippedCount: 0 });
+    expect(p.summary).toMatchObject({ fileCount: 35, unresolvedCount: 0, skippedCount: 0 }); // +1: README.md, now indexed as a doc node
   });
 
   it("detects the ten services with their build systems, and tags files with language and service", () => {
@@ -153,6 +153,6 @@ describe("analyzer on samples/polyglot (10 services, 10 languages)", () => {
       "orders-java:maven", "payments-csharp:dotnet", "search-rust:cargo", "users-python:python", "web-ts:npm",
     ]);
     expect(p.nodes.find((n) => n.path.endsWith("OrderService.java"))).toMatchObject({ lang: "java", service: "orders-java" });
-    expect(Object.keys(p.summary.languages ?? {}).sort()).toEqual(["c", "cpp", "csharp", "go", "java", "kotlin", "php", "python", "ruby", "rust", "typescript"]);
+    expect(Object.keys(p.summary.languages ?? {}).sort()).toEqual(["c", "cpp", "csharp", "go", "java", "kotlin", "markdown", "php", "python", "ruby", "rust", "typescript"]);
   });
 });

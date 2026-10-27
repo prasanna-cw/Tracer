@@ -34,7 +34,7 @@ describe("groupResolver", () => {
 
 describe("visibleNodeIds", () => {
   const all = visibleNodeIds(demo, defaultFilters, groupOf);
-  it("shows everything by default", () => expect(all.size).toBe(25));
+  it("shows everything by default", () => expect(all.size).toBe(26)); // +1: README.md, now indexed as a doc node
 
   it("hides orphans and tests", () => {
     expect(visibleNodeIds(demo, { ...defaultFilters, hideOrphans: true }, groupOf).size).toBe(23);

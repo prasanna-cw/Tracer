@@ -17,7 +17,9 @@ export const defaultFilters: GraphFilters = { hideOrphans: false, hideTests: fal
  * their single folder.
  */
 export function groupResolver(paths: readonly string[], monorepo = false): (path: string) => string {
-  const dirs = paths.map((p) => p.split("/").slice(0, -1));
+  // Root-level files (README.md, docker-compose.yml, …) have no folder and so no opinion on the shared
+  // prefix; counting them would collapse it to 0 for any repo that has one, which is nearly all of them.
+  const dirs = paths.map((p) => p.split("/").slice(0, -1)).filter((d) => d.length);
   let common = 0;
   if (dirs.length) {
     const first = dirs[0] ?? [];

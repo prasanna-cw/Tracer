@@ -20,5 +20,6 @@ What it exercises, and the exact numbers the tests expect:
 | unresolvable imports (3) | `broken/missing.ts` |
 | syntax error (skipped with a warning) | `broken/syntax-error.ts` |
 
-Expected: 25 files analyzed (1 skipped), 29 edges, 3 unresolved, 5 external, 1 cycle, 2 orphans
-(`orphan.ts`, and `broken/missing.ts`, whose only imports are unresolvable).
+Expected: 26 files analyzed (1 skipped; this README counts too, as a doc node), 29 edges, 3 unresolved,
+5 external, 1 cycle, 3 orphans (this README, `orphan.ts`, and `broken/missing.ts`, whose only imports are
+unresolvable).

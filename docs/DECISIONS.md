@@ -226,10 +226,31 @@ Each entry: what, why, alternative considered.
 
 - **What made it faster:** reading was most of the time (2.6 ms per file here: antivirus and cold caches), and it was one file at a time. `prefetch` now keeps 48 reads in flight (bounded to ~400 MB held), then parsing and linking use the cached text. Parsing itself is ~1.8 ms/file.
 - **Pays once:** the analysis and the index run in a worker thread (the editor stays responsive; progress is shown) and are kept per panel / per workspace; later flows and traces take milliseconds, and the file watcher re-parses only changed files.
-- **Not done, and where the next gains are:** parse across several worker threads (parsing is ~40% of what is left), and persist the index on disk keyed by file modification time so a restart is instant. Neither is needed to be usable at this size.
-- **Limits that remain:** a graph above ~20,000 files is analyzed in tens of seconds; the Graph tab draws thousands of dots well (55-61 fps at 2,000 files) but the Map is the better first view at that size; cross-service calls over HTTP/gRPC/queues are not linked (only code that imports or names other code).
+- **Not done, and where the next gains are:** parse across several worker threads (parsing is ~40% of what is left). The index is now persisted on disk (D35), so a restart is instant for unchanged files.
+- **Limits that remain:** a graph above ~20,000 files is analyzed in tens of seconds; the Graph tab draws thousands of dots well (55-61 fps at 2,000 files) but the Map is the better first view at that size; cross-service calls over HTTP/gRPC/queues are not linked (only code that imports or names other code, plus docker-compose's `depends_on`, D37).
+
+## D35. Persistent, incremental analysis cache
+
+- **What:** `FileCache` (`packages/cli/src/cache.ts`) keeps one JSON file per analyzed root at `~/.tracer/cache/<hash of the root path>.json`, entries keyed by `kind` (`ts` or `facts`) and path, validated by size and mtime. `analyzeWorkspace` and `indexWorkspace` (`packages/cli/src/workspace.ts`) check it before reading or parsing a file; a hit skips both. The two share "facts" entries for non-TypeScript files, so opening Map/Graph once speeds up the first Show Flow index too, and vice versa.
+- **Why not in the repo:** this tool analyzes arbitrary projects, not just itself; a cache file under the analyzed folder would pollute someone else's repo (and need a `.gitignore` entry nobody asked for).
+- **Determinism:** a cache hit returns the exact same `TsFileFacts`/`FileFacts` a fresh parse would, so the graph is still byte-identical (D21) regardless of what is cached.
+- **Limits (`ponytail:` in code):** last-write-wins under two concurrent analyses of the same root (a lost update is a cache miss next time, never a wrong result); a cache-format bump invalidates the whole file, no migration.
+
+## D36. Live refresh: Map/Graph updates while open
+
+- **What:** `openGraphView` watches the analyzed folder (`vscode.RelativePattern` + the same source glob Show Flow's index uses) and, on a change, re-analyzes in the background (`Coalesced`, `packages/extension/src/coalesce.ts`: 500 ms after the last change, and a change mid-run queues exactly one more pass after, never piles up) and pushes the new graph as a `graphUpdated` event. Shown with quiet window-level progress, not a notification toast: this can fire on every save.
+- **Observability:** the panel's latest `nodeCount` is written into the same `statuses` map the flow/diagram editors already expose via `ext.exports.statusOf`, so integration tests can watch a live refresh land without a handle to the webview.
+- **Found by testing it for real:** a first version watched an external temp folder and the refresh never fired — VS Code's recursive watcher does not reliably cover paths outside the open workspace. The fix, and the lesson for any similar feature: put the fixture inside the open workspace.
+- **Known limit:** the Map keeps its expand state and redraws cleanly (D33: it only reads `graph` plus local UI state). The Graph's force simulation re-settles from scratch on each refresh rather than smoothly transitioning; fixing that is layout-diffing work on top of D22's worker, not done.
+
+## D37. Docs and docker-compose: cross-links into the same graph
+
+- **What:** `.md`/`.mdx` files and docker-compose files (`docker-compose*.yml`, `compose.yml`, overrides) become graph nodes like any source file, linked with the same `source`/`target` edges the import graph uses, not a new edge kind, so the existing Map/Graph rendering and roll-up (`map.ts`) show them for free. An edge whose endpoints are not real file nodes is silently dropped by the roll-up, which is why both doc links and compose links resolve to real files rather than inventing folder- or service-level nodes.
+- **Docs:** a relative link (`[x](./path)`) resolves like any other path reference. A code span (`` `Name` ``) resolves to the one file whose tree-sitter facts declare that exact name; two or more candidates and it is left unlinked (D31's rule: a wrong link is worse than no link). Names come from non-TypeScript languages' facts only; a TypeScript-only repo still gets link resolution, just not code-span matching.
+- **docker-compose:** a small indentation-tree reader (`composeLinks.ts`, not a general YAML parser: no anchors, no flow style, no multi-document files) reads each service's `build` context and `depends_on`. A compose service resolves to a known code service only on an exact build-context match. `depends_on` between two resolved services becomes an edge between one real file from each (first by path order, so it stays deterministic); an `image:`-only dependency (a database, a queue) is simply not linked.
+- **Found while shipping it:** a root-level file (every real repo has at least a README) broke `groupResolver`'s shared-folder-prefix detection for the Graph's folder coloring, since that heuristic assumed every file had a parent folder. Fixed by excluding root-level files from the prefix computation (`packages/app/src/graph/graphModel.ts`).
+- **Not done:** Kubernetes manifests, Terraform/Ansible and other infra-as-code formats; only docker-compose is read so far.
 
 ## Phase 3 seams (not built)
 
-- **Graph refresh:** re-run the analysis on file changes (debounced `FileSystemWatcher` on source files) and push the new graph as an event; today the command re-analyzes on each run.
 - **Staleness:** extend `source` with `hash` (content hash of the referenced range or file). The host recomputes and the canvas badges nodes whose hash differs. Because `source` is loose today, adding the field is backward compatible.

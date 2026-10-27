@@ -123,6 +123,63 @@ describe("analyzeRepo (in-memory)", () => {
   });
 });
 
+describe("docs and docker-compose (cross-links)", () => {
+  it("links a markdown doc to a file via a relative link, and adds the doc as its own node", () => {
+    const files = { "README.md": "See [the core module](./src/core.ts) for details.", "src/core.ts": "export const x = 1;" };
+    const g = analyzeRepo(memoryFs(files), "/repo").graph;
+    expect(g.nodes.find((n) => n.path === "README.md")).toMatchObject({ lang: "markdown", ext: "md" });
+    expect(g.edges).toEqual([{ source: "README.md", target: "src/core.ts" }]);
+  });
+
+  it("ignores an external link and a link to a file outside the graph", () => {
+    const files = { "README.md": "[docs](https://example.com) and [ghost](./nope.ts)." };
+    const g = analyzeRepo(memoryFs(files), "/repo").graph;
+    expect(g.edges).toEqual([]);
+  });
+
+  const factsOf = (abs: string, names: string[]) =>
+    [abs, { lang: "python", loc: 1, imports: [], types: names.map((name) => ({ name, kind: "class" as const, line: 1 })), functions: [], typeRefs: [], syntaxErrors: false }] as const;
+
+  it("links a markdown code span to the one file declaring that symbol (tree-sitter facts)", () => {
+    const files = { "README.md": "Call `Widget` to render it.", "lib.py": "class Widget: pass" };
+    const facts = new Map([factsOf("/repo/lib.py", ["Widget"])]);
+    const g = analyzeRepo(memoryFs(files), "/repo", { facts }).graph;
+    expect(g.edges).toEqual([{ source: "README.md", target: "lib.py" }]);
+  });
+
+  it("skips an ambiguous code span: a wrong link is worse than no link", () => {
+    const files = { "README.md": "See `Widget`.", "a.py": "class Widget: pass", "b.py": "class Widget: pass" };
+    const facts = new Map([factsOf("/repo/a.py", ["Widget"]), factsOf("/repo/b.py", ["Widget"])]);
+    const g = analyzeRepo(memoryFs(files), "/repo", { facts }).graph;
+    expect(g.edges.filter((e) => e.source === "README.md")).toEqual([]);
+  });
+
+  it("links docker-compose depends_on to real services via build context, and the compose file to each", () => {
+    const files = {
+      "docker-compose.yml": ["services:", "  orders:", "    build: ./orders", "    depends_on:", "      - billing", "  billing:", "    build: ./billing"].join("\n"),
+      "orders/package.json": "{}",
+      "orders/index.ts": "export const orders = 1;",
+      "billing/package.json": "{}",
+      "billing/index.ts": "export const billing = 1;",
+    };
+    const g = analyzeRepo(memoryFs(files), "/repo").graph;
+    expect(g.nodes.find((n) => n.path === "docker-compose.yml")).toMatchObject({ lang: "compose" });
+    expect(g.edges).toContainEqual({ source: "orders/index.ts", target: "billing/index.ts" });
+    expect(g.edges).toContainEqual({ source: "docker-compose.yml", target: "orders/index.ts" });
+    expect(g.edges).toContainEqual({ source: "docker-compose.yml", target: "billing/index.ts" });
+  });
+
+  it("skips a depends_on that is not a local build (an image-only service, e.g. a database)", () => {
+    const files = {
+      "docker-compose.yml": ["services:", "  orders:", "    build: ./orders", "    depends_on:", "      - db", "  db:", "    image: postgres:16"].join("\n"),
+      "orders/package.json": "{}",
+      "orders/index.ts": "export const orders = 1;",
+    };
+    const g = analyzeRepo(memoryFs(files), "/repo").graph;
+    expect(g.edges).toEqual([{ source: "docker-compose.yml", target: "orders/index.ts" }]);
+  });
+});
+
 describe("parseGitignore", () => {
   const { matches, unsupported } = parseGitignore("logs/\n*.tmp\n/root-only.ts\nsrc/**/gen\n!keep.tmp\n");
   it.each([

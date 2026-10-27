@@ -66,6 +66,8 @@ const eventSchema = z.discriminatedUnion("type", [
   z.object({ kind: z.literal("event"), type: z.literal("documentChanged"), id, diagram: diagramSchema }),
   /** The document on disk/in the editor no longer parses; the webview shows the errors instead of the canvas. */
   z.object({ kind: z.literal("event"), type: z.literal("documentInvalid"), id, errors: z.array(z.string()) }),
+  /** Map/Graph: a source file changed on disk and the workspace was re-analyzed; here is the new graph. */
+  z.object({ kind: z.literal("event"), type: z.literal("graphUpdated"), graph: codeGraphSchema }),
 ]);
 export type HostEvent = z.infer<typeof eventSchema>;
 export type ToWebview = Response | HostEvent;

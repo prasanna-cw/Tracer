@@ -3,12 +3,16 @@ import { cycleEdgeKeys, findCycles } from "../graph/algorithms";
 import type { CodeGraph, CodeGraphEdge, CodeGraphNode } from "../graph/types";
 import type { FileFacts } from "../engine/facts";
 import { languageForPath } from "../engine/languages";
+import { linkCompose } from "./composeLinks";
+import { linkDocs } from "./docLinks";
 import { joinPath, type FileSystemHost } from "./fileSystem";
 import { parseGitignore, type IgnoreMatcher } from "./gitignore";
 import { linkFacts, type FactsFile, type Service } from "./linkFacts";
 
 const SOURCE_FILE = /\.(ts|tsx|js|jsx|mjs|cjs|mts|cts)$/i;
 const DECLARATION_FILE = /\.d\.[cm]?ts$/i;
+const DOC_FILE = /\.mdx?$/i;
+const COMPOSE_FILE = /^(docker-)?compose(\.[\w.-]+)?\.ya?ml$/i;
 // Dependencies, caches and build output: never the user's code, often thousands of files.
 const ALWAYS_IGNORED = new Set([
   "node_modules", "dist", "build", ".git", "coverage",
@@ -21,12 +25,20 @@ const cmp = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
 export type AnalyzeResult = { graph: CodeGraph; cycleEdges: number };
 
+/** What Pass 1 keeps from one TypeScript/JavaScript file: its specifiers and line count, or why it was skipped. */
+export type TsFileFacts = { specifiers: string[]; loc: number; syntaxError?: string };
+
 export type AnalyzeOptions = {
   /**
    * tree-sitter facts for non-TypeScript files, by absolute path (see @tracer/core/engine). The host computes
    * them (possibly on several threads) and passes them in; files of other languages without facts are left out.
    */
   facts?: ReadonlyMap<string, FileFacts>;
+  /**
+   * Precomputed `parseTsFile` results for TypeScript/JavaScript files, by absolute path (a disk or in-memory
+   * cache). A file missing from the map is parsed here instead, so this is always safe to omit or leave partial.
+   */
+  tsFacts?: ReadonlyMap<string, TsFileFacts>;
 };
 
 // Build manifests: a folder holding one is a project / service.
@@ -48,7 +60,7 @@ export function analyzeRepo(fs: FileSystemHost, root: string, opts: AnalyzeOptio
   const rel = (abs: string): string => abs.slice(root.length + 1);
 
   const ignore = gitignore(fs, root, warnings);
-  const { files, others, services } = walk(fs, root, ignore);
+  const { files, others, docs, compose, services } = walk(fs, root, ignore);
   const packages = services.filter((s) => s.path).map((s) => s.path);
   const serviceOf = (relPath: string): string =>
     services.reduce((best, s) => (s.path.length > best.length && (relPath === s.path || relPath.startsWith(`${s.path}/`)) ? s.path : best), "");
@@ -81,23 +93,18 @@ export function analyzeRepo(fs: FileSystemHost, root: string, opts: AnalyzeOptio
     return config;
   };
 
-  // Pass 1: parse one file at a time and keep only its specifiers; the AST is dropped right away.
+  // Pass 1: parse one file at a time and keep only its specifiers; the AST is dropped right away. A cache hit
+  // (opts.tsFacts) skips the read and the parse entirely.
   const parsed = new Map<string, { specifiers: string[]; loc: number }>();
   for (const abs of files) {
-    const text = fs.readFile(abs);
-    if (text === undefined) {
+    const result = opts.tsFacts?.get(abs) ?? parseTsFile(fs, abs);
+    if (!result) {
       warnings.push(`${rel(abs)}: could not be read; skipped`);
-      continue;
+    } else if (result.syntaxError) {
+      warnings.push(`${rel(abs)}:${result.syntaxError}; skipped`);
+    } else {
+      parsed.set(abs, { specifiers: result.specifiers, loc: result.loc });
     }
-    const sf = ts.createSourceFile(abs, text, ts.ScriptTarget.Latest, false, scriptKind(abs));
-    const syntaxError = parseDiagnostics(sf)[0];
-    if (syntaxError) {
-      const { line } = ts.getLineAndCharacterOfPosition(sf, syntaxError.start ?? 0);
-      const message = ts.flattenDiagnosticMessageText(syntaxError.messageText, " ");
-      warnings.push(`${rel(abs)}:${line + 1}: syntax error (${message}); skipped`);
-      continue;
-    }
-    parsed.set(abs, { specifiers: collectSpecifiers(sf), loc: countLines(text) });
   }
 
   // Pass 2: resolve with TypeScript's own module resolution (paths, baseUrl, index files, .js -> .ts).
@@ -156,16 +163,24 @@ export function analyzeRepo(fs: FileSystemHost, root: string, opts: AnalyzeOptio
     external: () => void externalCount++,
   });
 
-  const edgeList = [...edges.values()].sort((a, b) => cmp(a.source, b.source) || cmp(a.target, b.target));
   const node = (path: string, loc: number, lang: string): CodeGraphNode => {
     const slash = path.lastIndexOf("/");
     const dot = path.lastIndexOf(".");
     return { id: path, path, folder: slash < 0 ? "." : path.slice(0, slash), ext: path.slice(dot + 1), loc, inDegree: 0, outDegree: 0, lang, service: serviceOf(path) };
   };
-  const nodes: CodeGraphNode[] = [
+  const codeNodes: CodeGraphNode[] = [
     ...[...parsed].map(([abs, { loc }]) => node(rel(abs), loc, tsLang(abs))),
     ...factsFiles.map((f) => node(f.rel, f.facts.loc, f.facts.lang)),
   ].sort((a, b) => cmp(a.path, b.path));
+
+  // Docs and docker-compose: linked against the code graph built so far, never against each other.
+  const byPathSoFar = new Map(codeNodes.map((n) => [n.path, n]));
+  const docLinks = linkDocs(fs, root, docs, factsFiles, byPathSoFar, serviceOf);
+  const composeLinks = linkCompose(fs, root, compose, services, codeNodes, serviceOf);
+  for (const e of [...docLinks.edges, ...composeLinks.edges]) edges.set(`${e.source} ${e.target}`, e);
+
+  const edgeList = [...edges.values()].sort((a, b) => cmp(a.source, b.source) || cmp(a.target, b.target));
+  const nodes = [...codeNodes, ...docLinks.nodes, ...composeLinks.nodes].sort((a, b) => cmp(a.path, b.path));
   const languages: Record<string, number> = {};
   for (const n of nodes) if (n.lang) languages[n.lang] = (languages[n.lang] ?? 0) + 1;
   const byId = new Map(nodes.map((n) => [n.id, n]));
@@ -204,6 +219,23 @@ export function analyzeRepo(fs: FileSystemHost, root: string, opts: AnalyzeOptio
   };
 }
 
+/**
+ * Parses one TypeScript/JavaScript file into its import specifiers and line count (or the syntax error that
+ * skips it). Pure function of the file's content, so a host can cache the result by path + size + mtime.
+ */
+export function parseTsFile(fs: FileSystemHost, abs: string): TsFileFacts | undefined {
+  const text = fs.readFile(abs);
+  if (text === undefined) return undefined;
+  const sf = ts.createSourceFile(abs, text, ts.ScriptTarget.Latest, false, scriptKind(abs));
+  const syntaxError = parseDiagnostics(sf)[0];
+  if (syntaxError) {
+    const { line } = ts.getLineAndCharacterOfPosition(sf, syntaxError.start ?? 0);
+    const message = ts.flattenDiagnosticMessageText(syntaxError.messageText, " ");
+    return { specifiers: [], loc: 0, syntaxError: `${line + 1}: syntax error (${message})` };
+  }
+  return { specifiers: collectSpecifiers(sf), loc: countLines(text) };
+}
+
 /** `spec` relative to the file importing it, with `.` and `..` folded (absolute `/x` is taken as-is). */
 function resolvePath(fromFile: string, spec: string): string {
   const base = spec.startsWith("/") ? [] : fromFile.split("/").slice(0, -1);
@@ -217,12 +249,18 @@ function resolvePath(fromFile: string, spec: string): string {
 const dirname = (p: string): string => p.slice(0, p.lastIndexOf("/"));
 
 /**
- * TypeScript/JavaScript files (TypeScript resolver), files of other supported languages (tree-sitter), and
- * the folders holding a build manifest (services; "" is the root).
+ * TypeScript/JavaScript files (TypeScript resolver), files of other supported languages (tree-sitter),
+ * Markdown docs, docker-compose files, and the folders holding a build manifest (services; "" is the root).
  */
-export function walk(fs: FileSystemHost, root: string, ignore: IgnoreMatcher): { files: string[]; others: string[]; services: Service[] } {
+export function walk(
+  fs: FileSystemHost,
+  root: string,
+  ignore: IgnoreMatcher,
+): { files: string[]; others: string[]; docs: string[]; compose: string[]; services: Service[] } {
   const out: string[] = [];
   const others: string[] = [];
+  const docs: string[] = [];
+  const compose: string[] = [];
   const services: Service[] = [];
   const visit = (dir: string, relDir: string) => {
     const entries = fs.readDirectory(dir).sort((a, b) => cmp(a.name, b.name));
@@ -237,13 +275,17 @@ export function walk(fs: FileSystemHost, root: string, ignore: IgnoreMatcher): {
         continue;
       } else if (SOURCE_FILE.test(e.name)) {
         if (!DECLARATION_FILE.test(e.name)) out.push(joinPath(dir, e.name));
+      } else if (DOC_FILE.test(e.name)) {
+        docs.push(joinPath(dir, e.name));
+      } else if (COMPOSE_FILE.test(e.name)) {
+        compose.push(joinPath(dir, e.name));
       } else if (languageForPath(e.name)) {
         others.push(joinPath(dir, e.name));
       }
     }
   };
   visit(root, "");
-  return { files: out, others, services };
+  return { files: out, others, docs, compose, services };
 }
 
 function gitignore(fs: FileSystemHost, root: string, warnings: string[]): IgnoreMatcher {
@@ -344,7 +386,10 @@ function aliasMatcher(key: string): (spec: string) => boolean {
 }
 
 /** The files `analyzeRepo` would look at, so a host can compute tree-sitter facts for `others` first. */
-export function listSourceFiles(fs: FileSystemHost, root: string): { files: string[]; others: string[]; services: Service[] } {
+export function listSourceFiles(
+  fs: FileSystemHost,
+  root: string,
+): { files: string[]; others: string[]; docs: string[]; compose: string[]; services: Service[] } {
   root = root.replace(/\/+$/, "");
   return walk(fs, root, gitignore(fs, root, []));
 }

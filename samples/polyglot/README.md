@@ -17,4 +17,5 @@ Never built or run.
 | `engine-cpp` | C++ (CMake) | `#include` (relative and `include/`) |
 | `web-ts` | TypeScript | relative imports |
 
-Expected: 34 files (the `.h` headers and `build.gradle.kts` count), 23 edges, 0 unresolved, 10 services.
+Expected: 35 files (the `.h` headers, `build.gradle.kts`, and this README all count), 23 edges, 0 unresolved,
+10 services.

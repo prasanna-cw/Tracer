@@ -5,6 +5,17 @@
   "services": [],
   "nodes": [
     {
+      "id": "README.md",
+      "path": "README.md",
+      "folder": ".",
+      "ext": "md",
+      "loc": 25,
+      "inDegree": 0,
+      "outDegree": 0,
+      "lang": "markdown",
+      "service": ""
+    },
+    {
       "id": "src/app.tsx",
       "path": "src/app.tsx",
       "folder": "src",
@@ -399,7 +410,7 @@
     }
   ],
   "summary": {
-    "fileCount": 25,
+    "fileCount": 26,
     "skippedCount": 1,
     "edgeCount": 29,
     "unresolvedCount": 3,
@@ -407,6 +418,7 @@
     "assetCount": 0,
     "cycleCount": 1,
     "languages": {
+      "markdown": 1,
       "typescript": 16,
       "javascript": 9
     },

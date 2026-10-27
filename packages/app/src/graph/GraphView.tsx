@@ -57,8 +57,11 @@ export function GraphView({ host, theme }: { host: HostAdapter; theme: string })
       (g) => !cancelled && setGraph(g),
       (e: unknown) => !cancelled && setError(e instanceof Error ? e.message : String(e)),
     );
+    // A source file changed on disk and the host re-analyzed: show the new graph without the user reopening the view.
+    const unsubscribe = host.onGraphChanged?.((g) => !cancelled && setGraph(g));
     return () => {
       cancelled = true;
+      unsubscribe?.();
     };
   }, [host]);
   const openSource = useCallback((path: string) => void host.openSource(path), [host]);

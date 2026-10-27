@@ -2,10 +2,15 @@ import { Worker } from "node:worker_threads";
 import * as vscode from "vscode";
 import { codeGraphSchema, type CodeGraph, type CodeGraphSummary } from "@tracer/core";
 import type { WorkerMessage } from "./analyzerWorker";
+import { Coalesced } from "./coalesce";
+import type { Status } from "./diagramEditor";
+import { IGNORED, SOURCE_GLOB } from "./flowService";
 import { serve } from "./rpc";
 import { currentTheme, onThemeChange } from "./theme";
 import { webviewHtml, webviewOptions } from "./webview";
 import { exportFile, listDiagrams, openSource } from "./workspace";
+
+const noopProgress: vscode.Progress<{ message?: string; increment?: number }> = { report: () => undefined };
 
 type Reply = WorkerMessage;
 
@@ -52,10 +57,15 @@ function analyze(
  * "Tracer: Open Graph": analyzes `target` (a folder from the explorer menu) or the first workspace folder
  * in a worker thread (with progress), reports warnings, and shows the graph. Resolves to the summary (used by
  * tests), or undefined if there was nothing to analyze or the user cancelled.
+ *
+ * `statuses` (keyed by the analyzed folder's URI string, like the flow/diagram editors' own status map) gets
+ * `nodeCount` set after the initial analysis and again after every live refresh; integration tests use it to
+ * observe a background refresh without a handle to the webview itself.
  */
 export async function openGraphView(
   context: vscode.ExtensionContext,
   output: vscode.OutputChannel,
+  statuses: Map<string, Status>,
   target?: vscode.Uri,
   view: "map" | "graph" = "graph",
 ): Promise<CodeGraphSummary | undefined> {
@@ -84,8 +94,11 @@ export async function openGraphView(
     return undefined;
   }
 
-  const { graph, ms } = result;
+  let graph = result.graph;
+  const { ms } = result;
   const s = graph.summary;
+  const statusId = folder.uri.toString();
+  statuses.set(statusId, { id: statusId, state: "loaded", nodeCount: graph.nodes.length });
   output.appendLine(
     `[graph] ${folder.name}: ${s.fileCount} files (+${s.skippedCount} skipped), ${s.edgeCount} imports, ` +
       `${s.unresolvedCount} unresolved, ${s.externalCount} external, ${s.assetCount} assets, ${s.cycleCount} cycles, ${ms} ms`,
@@ -124,9 +137,36 @@ export async function openGraphView(
     (m) => output.appendLine(`[graph] ${m}`),
   );
   const theme = onThemeChange((t) => server.emit({ kind: "event", type: "theme", ...t }));
+
+  // Live refresh: a source file changing under `folder` re-analyzes in the background (fast, thanks to the
+  // on-disk cache; see @tracer/cli/workspace) and pushes the new graph, so the panel does not go stale until
+  // the user remembers to reopen it. Quiet (status-bar) progress, not a notification: this can fire on every save.
+  const refreshCts = new vscode.CancellationTokenSource();
+  const refresh = new Coalesced(500, () =>
+    vscode.window.withProgress({ location: vscode.ProgressLocation.Window, title: `Tracer: refreshing ${folder.name}…` }, async () => {
+      try {
+        const r = await analyze(context.extensionUri, folder.uri.fsPath.split("\\").join("/"), noopProgress, refreshCts.token);
+        graph = r.graph;
+        server.emit({ kind: "event", type: "graphUpdated", graph });
+        statuses.set(statusId, { id: statusId, state: "loaded", nodeCount: graph.nodes.length });
+        output.appendLine(`[graph] ${folder.name}: refreshed (${graph.summary.fileCount} files, ${graph.summary.edgeCount} imports)`);
+      } catch (e) {
+        if (!(e instanceof vscode.CancellationError)) output.appendLine(`[graph] refresh of ${folder.name} failed: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }),
+  );
+  const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(folder.uri, SOURCE_GLOB));
+  const touch = (uri: vscode.Uri) => !IGNORED.test(vscode.workspace.asRelativePath(uri, false)) && refresh.trigger();
+  const watcherSubs = [watcher, watcher.onDidChange(touch), watcher.onDidCreate(touch), watcher.onDidDelete(touch)];
+
   panel.onDidDispose(() => {
     server.dispose();
     theme.dispose();
+    refresh.dispose();
+    refreshCts.cancel();
+    refreshCts.dispose();
+    for (const d of watcherSubs) d.dispose();
+    statuses.delete(statusId);
   });
   return s;
 }

@@ -8,10 +8,19 @@ import {
   parseToHost,
   parseToWebview,
   textToDiagram,
+  type CodeGraph,
   type Diagram,
 } from "../src";
 
 const diagram: Diagram = { version: 1, title: "t", nodes: [{ id: "a", type: "text", x: 0, y: 0, width: 10, height: 10, text: "hi" }], edges: [] };
+const graph: CodeGraph = {
+  version: 1,
+  root: "demo",
+  packages: [],
+  nodes: [],
+  edges: [],
+  summary: { fileCount: 0, skippedCount: 0, edgeCount: 0, unresolvedCount: 0, externalCount: 0, assetCount: 0, cycleCount: 0, unresolved: [], warnings: [] },
+};
 const errorsOf = (r: { ok: boolean; errors?: string[] }) => (r.ok ? [] : (r.errors ?? []));
 
 describe("webview -> extension (requests)", () => {
@@ -62,6 +71,11 @@ describe("extension -> webview (responses and events)", () => {
     expect(parseToWebview(errorResponse(4, "nope")).ok).toBe(true);
     expect(parseToWebview(hostEvent({ kind: "event", type: "theme", theme: "dark", native: false })).ok).toBe(true);
     expect(parseToWebview(hostEvent({ kind: "event", type: "documentInvalid", id: "x", errors: ["bad"] })).ok).toBe(true);
+    expect(parseToWebview(hostEvent({ kind: "event", type: "graphUpdated", graph })).ok).toBe(true);
+  });
+
+  it("rejects a graphUpdated event carrying a broken graph (bugs fail loudly)", () => {
+    expect(() => hostEvent({ kind: "event", type: "graphUpdated", graph: { ...graph, nodes: "nope" } } as never)).toThrow();
   });
 
   it("refuses to send malformed messages from the extension (bugs fail loudly)", () => {
