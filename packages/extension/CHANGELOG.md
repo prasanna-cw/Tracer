@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.0.7
+
+- **Galaxy**: a third tab next to Map and Graph — the same workspace in 3D, one depth plane per top-level folder/service. Rotate, zoom, hover and click to open source. Loaded only when you open it, so it adds nothing to Map/Graph's own load time.
+- **Coverage diagnostics**: **Tracer: Load Coverage Report…** reads an lcov or Cobertura file (whatever your test runner already produces) and shows `% covered` on each file's card in the Map, tinting anything under 50% as a warning.
+- **Architecture decision records**: **Tracer: New ADR…** writes a numbered `docs/adr/NNNN-title.md` from the standard template and opens it; **Tracer: Open ADR…** lists every ADR you have. They're plain Markdown, so they show up in Map/Graph like any other doc.
+- Map/Graph no longer resets its layout to the center on a live refresh — only genuinely new files animate in; everything else keeps its position.
+
 ## 0.0.6
 
 - Map and Graph refresh automatically while they're open: edit and save, and the diagram updates in place, no need to reopen the view.

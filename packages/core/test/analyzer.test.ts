@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { analyzeRepo, parseGitignore, type FileSystemHost } from "../src/analyzer";
+import type { FileFacts } from "../src/engine";
 
 /**
  * In-memory FileSystemHost: proves the analyzer needs nothing but the port.
@@ -137,8 +138,10 @@ describe("docs and docker-compose (cross-links)", () => {
     expect(g.edges).toEqual([]);
   });
 
-  const factsOf = (abs: string, names: string[]) =>
-    [abs, { lang: "python", loc: 1, imports: [], types: names.map((name) => ({ name, kind: "class" as const, line: 1 })), functions: [], typeRefs: [], syntaxErrors: false }] as const;
+  const factsOf = (abs: string, names: string[]): [string, FileFacts] => [
+    abs,
+    { lang: "python", loc: 1, imports: [], types: names.map((name) => ({ name, kind: "class" as const, line: 1 })), functions: [], typeRefs: [], syntaxErrors: false },
+  ];
 
   it("links a markdown code span to the one file declaring that symbol (tree-sitter facts)", () => {
     const files = { "README.md": "Call `Widget` to render it.", "lib.py": "class Widget: pass" };

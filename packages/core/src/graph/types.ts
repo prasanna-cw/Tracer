@@ -12,6 +12,8 @@ export const codeGraphNodeSchema = z.object({
   outDegree: z.number().int().nonnegative(),
   lang: z.string().optional(), // "typescript", "java", "python", …
   service: z.string().optional(), // the folder of its project manifest ("" = the root)
+  /** From a loaded lcov/Cobertura report (`loadCoverage`): absent until one is loaded, or for a file it doesn't cover. */
+  coverage: z.object({ linesCovered: z.number().int().nonnegative(), linesTotal: z.number().int().positive() }).optional(),
 });
 
 export const codeGraphEdgeSchema = z.object({ source: z.string(), target: z.string() });

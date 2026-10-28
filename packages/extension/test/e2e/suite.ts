@@ -46,7 +46,7 @@ export async function run(): Promise<void> {
     assert.ok(summary, "the command returned no summary");
     assert.deepEqual(
       [summary.fileCount, summary.skippedCount, summary.edgeCount, summary.unresolvedCount, summary.externalCount, summary.cycleCount],
-      [25, 1, 29, 3, 5, 1],
+      [26, 1, 29, 3, 5, 1],
     );
     await vscode.commands.executeCommand("workbench.action.closeAllEditors");
   });
@@ -73,30 +73,73 @@ export async function run(): Promise<void> {
           const s = ext.exports.statusOf(key);
           return s && s.nodeCount === summary.fileCount + 1 ? s : undefined;
         },
-        15_000,
+        30_000,
       );
       assert.equal(refreshed.state, "loaded");
 
       await vscode.commands.executeCommand("workbench.action.closeAllEditors");
       assert.equal(ext.exports.statusOf(key), undefined, "the status is cleared once the panel closes");
     } finally {
-      rmSync(dir, { recursive: true, force: true }); // never leaves extra files for "analyzes every language" to count
+      // If a wait above threw, the panel was never closed, so its cancellation token was never fired: a
+      // background refresh can still be mid-read. Closing first lets that worker's read handles release
+      // before rmSync runs; retrying rides out the rest (Windows/antivirus can hold a brief lock on a file
+      // that was just read — D34).
+      try {
+        await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+      } catch {
+        // already closed, or nothing to close
+      }
+      for (let attempt = 0; attempt < 10; attempt++) {
+        try {
+          rmSync(dir, { recursive: true, force: true });
+          break;
+        } catch (e) {
+          // Never throw from a finally (it would mask the test's real outcome, D36): log and move on.
+          if (attempt === 9) console.error(`[e2e] could not fully clean up ${dir}: ${e instanceof Error ? e.message : String(e)}`);
+          else await new Promise((r) => setTimeout(r, 300));
+        }
+      }
     }
   });
 
   await test("Open Graph on the workspace analyzes every language (samples/polyglot: 10 services, 10 languages)", async () => {
     const summary = await vscode.commands.executeCommand<CodeGraphSummary | undefined>("tracer.openGraph");
     assert.ok(summary, "the command returned no summary");
-    assert.deepEqual([summary.fileCount, summary.edgeCount, summary.unresolvedCount], [34, 23, 0]);
-    assert.equal(Object.keys(summary.languages ?? {}).length, 11);
+    assert.deepEqual([summary.fileCount, summary.edgeCount, summary.unresolvedCount], [35, 23, 0]);
+    assert.equal(Object.keys(summary.languages ?? {}).length, 12); // +1: markdown, now indexed as a doc node
     await vscode.commands.executeCommand("workbench.action.closeAllEditors");
   });
 
   await test("Open Map shows the workspace as a map (same analysis as the graph)", async () => {
     const summary = await vscode.commands.executeCommand<CodeGraphSummary | undefined>("tracer.openMap");
     assert.ok(summary, "the command returned no summary");
-    assert.deepEqual([summary.fileCount, summary.edgeCount], [34, 23]);
+    assert.deepEqual([summary.fileCount, summary.edgeCount], [35, 23]);
     await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  await test("New ADR writes a numbered file from the template, and the next one increments", async () => {
+    const base = vscode.workspace.workspaceFolders?.[0]?.uri;
+    assert.ok(base, "no workspace folder is open");
+    const dir = vscode.Uri.joinPath(base, "docs", "adr");
+    try {
+      const uri = await vscode.commands.executeCommand<vscode.Uri | undefined>("tracer.newAdr", "Use a message queue");
+      assert.ok(uri, "no ADR file was created");
+      assert.match(uri.path, /0001-use-a-message-queue\.md$/);
+      const text = new TextDecoder().decode(await vscode.workspace.fs.readFile(uri));
+      assert.match(text, /^# 0001\. Use a message queue/);
+      assert.match(text, /Status: Proposed/);
+
+      const uri2 = await vscode.commands.executeCommand<vscode.Uri | undefined>("tracer.newAdr", "Pick a database");
+      assert.match(uri2?.path ?? "", /0002-pick-a-database\.md$/);
+
+      await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+    } finally {
+      try {
+        await vscode.workspace.fs.delete(dir, { recursive: true, useTrash: false });
+      } catch {
+        // nothing was created to clean up
+      }
+    }
   });
 
   await test("opens save-flow.diagram.json in the Tracer editor and the webview renders it", async () => {

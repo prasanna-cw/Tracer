@@ -3,9 +3,9 @@ import { MenuButton, type MenuItem } from "./Menu";
 
 export type Theme = "light" | "dark";
 export type SaveState = "idle" | "saving" | "saved";
-export type View = "diagram" | "map" | "graph";
+export type View = "diagram" | "map" | "graph" | "galaxy";
 
-const VIEW_LABEL: Record<View, string> = { diagram: "Flow", map: "Map", graph: "Graph" };
+const VIEW_LABEL: Record<View, string> = { diagram: "Flow", map: "Map", graph: "Graph", galaxy: "Galaxy" };
 
 /** The segmented switch between the app's views. */
 export function ViewTabs({ view, views, onView }: { view: View; views: readonly View[]; onView: (v: View) => void }) {
@@ -67,7 +67,7 @@ export function Toolbar(p: Props) {
             <TracerMark />
             Tracer
           </span>
-          <ViewTabs view={p.view} views={["diagram", "map", "graph"]} onView={p.onView} />
+          <ViewTabs view={p.view} views={["diagram", "map", "graph", "galaxy"]} onView={p.onView} />
         </>
       )}
       {web && p.view === "diagram" && (

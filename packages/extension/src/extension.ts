@@ -1,6 +1,8 @@
 import * as vscode from "vscode";
+import { parseCoverage } from "@tracer/core";
+import { newAdr, openAdrPicker } from "./adrCommands";
 import { FlowEditorProvider, type Status } from "./diagramEditor";
-import { openGraphView } from "./graphPanel";
+import { applyCoverageToOpenPanels, openGraphView } from "./graphPanel";
 import { FlowCommands } from "./flowCommands";
 import { FlowPanel } from "./flowPanel";
 import { FlowService } from "./flowService";
@@ -27,6 +29,9 @@ export function activate(context: vscode.ExtensionContext) {
       openGraphView(context, output, statuses, target instanceof vscode.Uri ? target : undefined, "map"),
     ),
     vscode.commands.registerCommand("tracer.openDiagram", openDiagramPicker),
+    vscode.commands.registerCommand("tracer.loadCoverage", loadCoveragePicker),
+    vscode.commands.registerCommand("tracer.newAdr", newAdr),
+    vscode.commands.registerCommand("tracer.openAdr", openAdrPicker),
   );
 
   // Show Flow: a diagram of a file, a function or a selection, beside the code.
@@ -68,6 +73,34 @@ async function openDiagramPicker(): Promise<void> {
     .sort((a, b) => a.description.localeCompare(b.description));
   const pick = await vscode.window.showQuickPick(items, { placeHolder: "Open a saved flow in Tracer", matchOnDescription: true });
   if (pick) await vscode.commands.executeCommand("vscode.openWith", pick.uri, FlowEditorProvider.viewType);
+}
+
+/**
+ * "Tracer: Load Coverage Report…": picks an lcov or Cobertura file (whatever your test runner already
+ * produces) and merges it into every currently open Map/Graph panel, live.
+ */
+async function loadCoveragePicker(): Promise<void> {
+  const picked = await vscode.window.showOpenDialog({
+    title: "Load Coverage Report",
+    openLabel: "Load",
+    filters: { "Coverage reports": ["info", "lcov", "xml"], "All files": ["*"] },
+    canSelectMany: false,
+  });
+  const uri = picked?.[0];
+  if (!uri) return;
+  const text = new TextDecoder().decode(await vscode.workspace.fs.readFile(uri));
+  const files = parseCoverage(text);
+  if (!files.length) {
+    void vscode.window.showErrorMessage(`Tracer: "${vscode.workspace.asRelativePath(uri)}" doesn't look like an lcov or Cobertura coverage report.`);
+    return;
+  }
+  const results = applyCoverageToOpenPanels(files);
+  if (!results.length) {
+    void vscode.window.showWarningMessage("Tracer: open Map or Graph first, then load the coverage report again.");
+    return;
+  }
+  const summary = results.map((r) => `${r.folderName}: ${r.matched}/${r.matched + r.unmatched} files`).join("; ");
+  void vscode.window.showInformationMessage(`Tracer: coverage loaded (${summary}).`);
 }
 
 export function deactivate(): void {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { ReactFlowProvider } from "@xyflow/react";
 import { toBlob, toSvg } from "html-to-image";
 import { toJsonCanvas, type Diagram } from "@tracer/core";
@@ -13,11 +13,14 @@ import { TracerMark } from "./ui/Icon";
 import { Toolbar, ViewTabs, type SaveState, type Theme, type View } from "./ui/Toolbar";
 import { MapView } from "./graph/MapView";
 import { GraphView } from "./graph/GraphView";
+// Three.js is ~500 kB: loaded only if the Galaxy tab is actually opened, not on every Map/Graph/Flow load.
+const GalaxyView = lazy(() => import("./graph/GalaxyView").then((m) => ({ default: m.GalaxyView })));
 
 const EMPTY: Diagram = { version: 1, title: "", nodes: [], edges: [] };
 const DEFAULT_ID = "save-flow.diagram.json";
 const GRAPH_HASH = "#graph";
 const MAP_HASH = "#map";
+const GALAXY_HASH = "#galaxy";
 const THEME_KEY = "tracer.theme";
 const STEP_MS = 2500;
 
@@ -64,6 +67,7 @@ export function App({ createHost, env, initialTheme, initialNative = false }: Pr
     if (env.kind === "graph") return env.view ?? "map";
     if (web && location.hash === GRAPH_HASH) return "graph";
     if (web && location.hash === MAP_HASH) return "map";
+    if (web && location.hash === GALAXY_HASH) return "galaxy";
     return "diagram";
   });
   const [theme, setTheme] = useState<Theme>(() => initialTheme ?? readTheme());
@@ -150,8 +154,8 @@ export function App({ createHost, env, initialTheme, initialNative = false }: Pr
   useEffect(() => {
     if (!web) return;
     const onHash = () => {
-      if (location.hash === GRAPH_HASH || location.hash === MAP_HASH) {
-        setView(location.hash === GRAPH_HASH ? "graph" : "map");
+      if (location.hash === GRAPH_HASH || location.hash === MAP_HASH || location.hash === GALAXY_HASH) {
+        setView(location.hash === GRAPH_HASH ? "graph" : location.hash === MAP_HASH ? "map" : "galaxy");
         return;
       }
       const id = decodeURIComponent(location.hash.slice(1));
@@ -300,7 +304,9 @@ export function App({ createHost, env, initialTheme, initialNative = false }: Pr
         <Toolbar
           mode={web ? "web" : "editor"}
           view={view}
-          onView={(v) => (location.hash = v === "graph" ? GRAPH_HASH : v === "map" ? MAP_HASH : encodeURIComponent(currentId ?? DEFAULT_ID))}
+          onView={(v) =>
+            (location.hash = v === "graph" ? GRAPH_HASH : v === "map" ? MAP_HASH : v === "galaxy" ? GALAXY_HASH : encodeURIComponent(currentId ?? DEFAULT_ID))
+          }
           diagrams={diagrams}
           currentId={currentId}
           onOpen={open}
@@ -329,7 +335,7 @@ export function App({ createHost, env, initialTheme, initialNative = false }: Pr
             <TracerMark />
             Tracer
           </span>
-          <ViewTabs view={view} views={["map", "graph"]} onView={setView} />
+          <ViewTabs view={view} views={["map", "graph", "galaxy"]} onView={setView} />
         </header>
       )}
       {view === "graph" ? (
@@ -339,6 +345,12 @@ export function App({ createHost, env, initialTheme, initialNative = false }: Pr
       ) : view === "map" ? (
         <main className="workspace">
           <MapView host={host} dark={theme === "dark"} />
+        </main>
+      ) : view === "galaxy" ? (
+        <main className="workspace">
+          <Suspense fallback={<div className="empty">Loading galaxy…</div>}>
+            <GalaxyView host={host} theme={theme} />
+          </Suspense>
         </main>
       ) : (
         <main className="workspace">

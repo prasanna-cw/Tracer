@@ -21,6 +21,7 @@ export type MapResult = { diagram: Diagram; items: ReadonlyMap<string, MapItem>;
 export const PAGE_SIZE = 30;
 const MAX_IMPORT_EDGES = 250;
 const CATEGORIES = ["layer", "service", "db", "entity", "data", "warning", "note"] as const;
+const LOW_COVERAGE_PCT = 50; // a loaded coverage report (applyCoverage): below this, the file's card tints "warning"
 
 type Dir = {
   id: string;
@@ -157,9 +158,13 @@ export function buildMap(graph: CodeGraph, state: MapState): MapResult {
     }
     for (const f of sortedFiles(d)) {
       if (drawn >= limit) break;
+      const pct = f.coverage ? Math.round((100 * f.coverage.linesCovered) / f.coverage.linesTotal) : undefined;
+      const lowCoverage = pct !== undefined && pct < LOW_COVERAGE_PCT;
       nodes.push({
-        id: fileId(f.path), type: "text", x: 0, y: 0, width: 216, height: 58, kind: "note", category: d.tint,
-        title: base(f.path), subtitle: `${f.loc} lines · ↓${f.inDegree} ↑${f.outDegree}`, source: { path: f.path },
+        id: fileId(f.path), type: "text", x: 0, y: 0, width: 216, height: 58, kind: "note", category: lowCoverage ? "warning" : d.tint,
+        title: base(f.path),
+        subtitle: `${f.loc} lines · ↓${f.inDegree} ↑${f.outDegree}${pct === undefined ? "" : ` · ${pct}% covered`}`,
+        source: { path: f.path },
       });
       items.set(fileId(f.path), { kind: "file", path: f.path });
       shownFile.add(f.path);

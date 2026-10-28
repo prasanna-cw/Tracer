@@ -1,6 +1,6 @@
 import { Worker } from "node:worker_threads";
 import * as vscode from "vscode";
-import { codeGraphSchema, type CodeGraph, type CodeGraphSummary } from "@tracer/core";
+import { applyCoverage, codeGraphSchema, type CodeGraph, type CodeGraphSummary, type FileCoverage } from "@tracer/core";
 import type { WorkerMessage } from "./analyzerWorker";
 import { Coalesced } from "./coalesce";
 import type { Status } from "./diagramEditor";
@@ -11,6 +11,21 @@ import { webviewHtml, webviewOptions } from "./webview";
 import { exportFile, listDiagrams, openSource } from "./workspace";
 
 const noopProgress: vscode.Progress<{ message?: string; increment?: number }> = { report: () => undefined };
+
+type OpenPanel = { folderName: string; get: () => CodeGraph; set: (g: CodeGraph) => void };
+/** Every currently open Map/Graph panel, keyed by its folder's URI string. Lets a separate command (loading
+ * a coverage report) reach an already-open panel without either side needing a direct reference to the other. */
+const openPanels = new Map<string, OpenPanel>();
+
+/** Merges a loaded coverage report into every open Map/Graph panel and pushes the update live (same path a
+ * file-change refresh uses). Returns per-panel match counts so the caller can tell the user what landed. */
+export function applyCoverageToOpenPanels(coverage: readonly FileCoverage[]): { folderName: string; matched: number; unmatched: number }[] {
+  return [...openPanels.values()].map((p) => {
+    const r = applyCoverage(p.get(), coverage);
+    p.set(r.graph);
+    return { folderName: p.folderName, matched: r.matched, unmatched: r.unmatched };
+  });
+}
 
 type Reply = WorkerMessage;
 
@@ -138,6 +153,13 @@ export async function openGraphView(
   );
   const theme = onThemeChange((t) => server.emit({ kind: "event", type: "theme", ...t }));
 
+  const setGraph = (g: CodeGraph) => {
+    graph = g;
+    server.emit({ kind: "event", type: "graphUpdated", graph });
+    statuses.set(statusId, { id: statusId, state: "loaded", nodeCount: graph.nodes.length });
+  };
+  openPanels.set(statusId, { folderName: folder.name, get: () => graph, set: setGraph });
+
   // Live refresh: a source file changing under `folder` re-analyzes in the background (fast, thanks to the
   // on-disk cache; see @tracer/cli/workspace) and pushes the new graph, so the panel does not go stale until
   // the user remembers to reopen it. Quiet (status-bar) progress, not a notification: this can fire on every save.
@@ -146,9 +168,7 @@ export async function openGraphView(
     vscode.window.withProgress({ location: vscode.ProgressLocation.Window, title: `Tracer: refreshing ${folder.name}…` }, async () => {
       try {
         const r = await analyze(context.extensionUri, folder.uri.fsPath.split("\\").join("/"), noopProgress, refreshCts.token);
-        graph = r.graph;
-        server.emit({ kind: "event", type: "graphUpdated", graph });
-        statuses.set(statusId, { id: statusId, state: "loaded", nodeCount: graph.nodes.length });
+        setGraph(r.graph);
         output.appendLine(`[graph] ${folder.name}: refreshed (${graph.summary.fileCount} files, ${graph.summary.edgeCount} imports)`);
       } catch (e) {
         if (!(e instanceof vscode.CancellationError)) output.appendLine(`[graph] refresh of ${folder.name} failed: ${e instanceof Error ? e.message : String(e)}`);
@@ -167,6 +187,7 @@ export async function openGraphView(
     refreshCts.dispose();
     for (const d of watcherSubs) d.dispose();
     statuses.delete(statusId);
+    openPanels.delete(statusId);
   });
   return s;
 }

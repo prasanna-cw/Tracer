@@ -24,6 +24,7 @@ function countLines(text: string): number {
 const MD_LINK = /\[[^\]]*\]\(([^)\s]+)\)/g; // [text](path#anchor)
 const CODE_SPAN = /`([A-Za-z_][A-Za-z0-9_]*)`/g; // `identifier`
 const EXTERNAL = /^[a-z][a-z0-9+.-]*:/i; // a URL scheme (http:, mailto:, …), not a relative path
+const ADR_DIR = /(^|\/)adr(\/|$)/i; // docs/adr/0001-....md, or any "adr" folder
 
 /**
  * Links Markdown files to the code they document: a relative link (`[x](./src/a.ts)`) to the file it points
@@ -80,7 +81,8 @@ export function linkDocs(
     }
 
     const ext = docRel.slice(docRel.lastIndexOf(".") + 1);
-    nodes.push({ id: docRel, path: docRel, folder: docDir || ".", ext, loc: countLines(text), inDegree: 0, outDegree: 0, lang: "markdown", service: serviceOf(docRel) });
+    const lang = ADR_DIR.test(docDir) ? "adr" : "markdown";
+    nodes.push({ id: docRel, path: docRel, folder: docDir || ".", ext, loc: countLines(text), inDegree: 0, outDegree: 0, lang, service: serviceOf(docRel) });
   }
   return { nodes, edges };
 }

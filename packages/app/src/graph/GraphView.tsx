@@ -139,6 +139,9 @@ function GraphExplorer({ graph, theme, onOpenSource }: { graph: CodeGraph; theme
   // ---- imperative engine (refs: never re-render React per frame) ------------------------------------
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engine = useRef<Engine | null>(null);
+  // Positions from the graph just torn down, so a live refresh (D36) continues the layout instead of
+  // restarting it: only genuinely new files (not in here) get the worker's off-screen warm-up treatment.
+  const lastPositions = useRef(new Map<string, { x: number; y: number }>());
   const transform = useRef<ZoomTransform>(zoomIdentity);
   const zoomBehavior = useRef<ZoomBehavior<HTMLCanvasElement, unknown> | null>(null);
   const hover = useRef<string | null>(null);
@@ -238,7 +241,15 @@ function GraphExplorer({ graph, theme, onOpenSource }: { graph: CodeGraph; theme
     for (const n of graph.nodes) counts.set(basename(n.path), (counts.get(basename(n.path)) ?? 0) + 1);
     const label = (p: string) => ((counts.get(basename(p)) ?? 0) > 1 ? p.split("/").slice(-2).join("/") : basename(p));
     const byId = new Map<string, SimNode>(
-      graph.nodes.map((n) => [n.id, { id: n.id, node: n, r: 4, colorIndex: 0, color: "", label: label(n.path) }]),
+      graph.nodes.map((n) => {
+        const sim: SimNode = { id: n.id, node: n, r: 4, colorIndex: 0, color: "", label: label(n.path) };
+        const prior = lastPositions.current.get(n.id);
+        if (prior) {
+          sim.x = prior.x;
+          sim.y = prior.y;
+        }
+        return [n.id, sim];
+      }),
     );
     const worker = new LayoutWorker();
     const e: Engine = { worker, gen: 0, byId, nodes: [], index: new Map(), links: [], tree: null, maxR: 0, fitted: false, placed: false };
@@ -265,6 +276,9 @@ function GraphExplorer({ graph, theme, onOpenSource }: { graph: CodeGraph; theme
     worker.onerror = (ev) => console.error("[tracer] layout worker failed:", ev.message);
     engine.current = e;
     return () => {
+      lastPositions.current = new Map(
+        [...e.byId].flatMap(([id, n]) => (n.x !== undefined && n.y !== undefined ? [[id, { x: n.x, y: n.y }] as const] : [])),
+      );
       worker.terminate();
       engine.current = null;
     };

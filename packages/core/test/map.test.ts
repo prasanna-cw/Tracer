@@ -84,6 +84,24 @@ describe("workspace map", () => {
     expect(n.find((x) => x.id === "f:src/ui/Button.tsx")?.source).toEqual({ path: "src/ui/Button.tsx" });
   });
 
+  it("shows a loaded coverage percentage on a file's card, and tints it 'warning' below 50%", () => {
+    const g = synthetic(["pkg/a.ts", "pkg/b.ts"]);
+    g.nodes[0]!.coverage = { linesCovered: 2, linesTotal: 10 }; // 20%: low
+    g.nodes[1]!.coverage = { linesCovered: 9, linesTotal: 10 }; // 90%: fine
+    const r = buildMap(g, open("d:", "d:pkg"));
+    const low = r.diagram.nodes.find((n) => n.id === "f:pkg/a.ts");
+    const fine = r.diagram.nodes.find((n) => n.id === "f:pkg/b.ts");
+    expect(low?.subtitle).toMatch(/20% covered/);
+    expect(low?.category).toBe("warning");
+    expect(fine?.subtitle).toMatch(/90% covered/);
+    expect(fine?.category).not.toBe("warning");
+  });
+
+  it("a file with no loaded coverage shows no percentage", () => {
+    const r = buildMap(synthetic(["pkg/a.ts"]), open("d:", "d:pkg"));
+    expect(r.diagram.nodes.find((n) => n.id === "f:pkg/a.ts")?.subtitle).not.toMatch(/covered/);
+  });
+
   it("revealInMap opens the way to a file, even one paged out of a big folder", () => {
     const paths = Array.from({ length: 70 }, (_, i) => `pkg/big/f${String(i).padStart(2, "0")}.ts`).concat(["pkg/x/y.ts"]);
     const g = synthetic(paths);

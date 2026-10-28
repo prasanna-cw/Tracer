@@ -2,7 +2,7 @@
   "name": "tracer-code-flow",
   "displayName": "Tracer: Code Flow & Map",
   "description": "See how your code flows. Right-click a function for its flowchart, trace calls across files, and map a whole repository. 19 languages, 100% local: no AI, no network, no telemetry.",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "publisher": "PrasannaMurugan",
   "license": "MIT",
   "repository": {
@@ -31,7 +31,10 @@
     "onCommand:tracer.showFlow",
     "onCommand:tracer.showFunctionFlow",
     "onCommand:tracer.traceCalls",
-    "onCommand:tracer.openMap"
+    "onCommand:tracer.openMap",
+    "onCommand:tracer.loadCoverage",
+    "onCommand:tracer.newAdr",
+    "onCommand:tracer.openAdr"
   ],
   "contributes": {
     "viewsContainers": {
@@ -78,6 +81,24 @@
         "title": "Open Saved Flow…",
         "category": "Tracer",
         "icon": "$(go-to-file)"
+      },
+      {
+        "command": "tracer.loadCoverage",
+        "title": "Load Coverage Report…",
+        "category": "Tracer",
+        "icon": "$(shield)"
+      },
+      {
+        "command": "tracer.newAdr",
+        "title": "New ADR…",
+        "category": "Tracer",
+        "icon": "$(book)"
+      },
+      {
+        "command": "tracer.openAdr",
+        "title": "Open ADR…",
+        "category": "Tracer",
+        "icon": "$(book)"
       },
       {
         "command": "tracer.refresh",
