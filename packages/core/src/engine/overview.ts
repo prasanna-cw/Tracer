@@ -13,6 +13,8 @@ export type FunctionIndex = {
   has(path: string): boolean;
   /** The function a resolved call points at (undefined for a type constructor or an unknown target). */
   definition(t: CallTarget): Fn | undefined;
+  /** Functions with a call that resolves to `fn` (same rules as `resolve`, so never a guess). */
+  callersOf(fn: { path: string; line: number; name: string }): Fn[];
 };
 
 const COMMON = new Set([
@@ -72,8 +74,30 @@ export function buildFunctionIndex(files: Iterable<IndexedFile>): FunctionIndex 
     return asTarget(pick(byName.get(name) ?? [], from, service, receiver));
   };
 
+  // ponytail: built on first use by resolving every call in the workspace, and the index is rebuilt per flow;
+  // cache it beside the index in FlowService if Trace Callers gets slow on big repos.
+  let callers: Map<string, Fn[]> | undefined;
+  const buildCallers = (): Map<string, Fn[]> => {
+    const m = new Map<string, Fn[]>();
+    for (const f of byPath.values()) {
+      for (const raw of f.facts.functions) {
+        const caller: Fn = { ...raw, path: f.path, service: f.service };
+        const hit = new Set<string>(); // `save()` and `this.save()` in one function: one caller
+        for (const call of raw.calls) {
+          const t = resolve(call, { path: f.path, container: raw.container });
+          if (t && !hit.has(keyOf(t))) {
+            hit.add(keyOf(t));
+            push(m, keyOf(t), caller);
+          }
+        }
+      }
+    }
+    return m;
+  };
+
   return {
     resolve,
+    callersOf: (fn) => (callers ??= buildCallers()).get(keyOf(fn)) ?? [],
     has: (path) => byPath.has(path),
     definition(t) {
       const f = byPath.get(t.path)?.facts.functions.find((fn) => fn.line === t.line && fn.name === t.name);
@@ -196,8 +220,16 @@ export function fileOverview(file: IndexedFile, index: FunctionIndex): { ok: tru
   return { ok: true, truncated: hidden > 0, diagram: { version: 1, title: base(file.path), nodes, edges, meta: { generated: { by: "tracer", path: file.path, scope: "file" } } } };
 }
 
-/** The functions reachable from `start` through resolved calls, across files, up to `depth` hops. */
-export function callTrace(index: FunctionIndex, start: { path: string; line: number }, depth = 4): { ok: true; diagram: Diagram; truncated: boolean } | { ok: false; reason: string } {
+/**
+ * The functions reachable from `start` through resolved calls, across files, up to `depth` hops.
+ * `callers`: the other way, every function whose calls reach `start` (arrows still point caller -> callee).
+ */
+export function callTrace(
+  index: FunctionIndex,
+  start: { path: string; line: number },
+  depth = 4,
+  direction: "calls" | "callers" = "calls",
+): { ok: true; diagram: Diagram; truncated: boolean } | { ok: false; reason: string } {
   const root = index.functionAt(start.path, start.line);
   if (!root) return { ok: false, reason: "There is no function at the cursor. Click inside a function and try again." };
   const nodes: DiagramNode[] = [];
@@ -218,12 +250,25 @@ export function callTrace(index: FunctionIndex, start: { path: string; line: num
     nodes.push(card(id, fn, [], level === 0 ? { kind: "start" } : {}));
     return id;
   };
+  const link = (from: string, to: string) => {
+    if (!edges.some((e) => e.fromNode === from && e.toNode === to)) edges.push({ id: `e${edges.length + 1}`, fromNode: from, toNode: to });
+  };
   const queue: { fn: Fn; level: number }[] = [{ fn: root, level: 0 }];
   add(root, 0);
   while (queue.length) {
     const { fn, level } = queue.shift() as { fn: Fn; level: number };
     const from = seen.get(keyOf(fn));
     if (!from) continue;
+    if (direction === "callers") {
+      if (level >= depth) continue;
+      for (const caller of index.callersOf(fn)) {
+        const known = seen.has(keyOf(caller));
+        const id = add(caller, level + 1);
+        if (id) link(id, from);
+        if (!known && id) queue.push({ fn: caller, level: level + 1 });
+      }
+      continue;
+    }
     const unresolved: string[] = [];
     for (const call of fn.calls) {
       const t = index.resolve(call, { path: fn.path, container: fn.container });
@@ -235,7 +280,7 @@ export function callTrace(index: FunctionIndex, start: { path: string; line: num
       if (level >= depth) continue;
       const known = seen.has(keyOf(def));
       const to = add(def, level + 1);
-      if (to && !edges.some((e) => e.fromNode === from && e.toNode === to)) edges.push({ id: `e${edges.length + 1}`, fromNode: from, toNode: to });
+      if (to) link(from, to);
       if (!known && to) queue.push({ fn: def, level: level + 1 });
     }
     const node = nodes.find((n) => n.id === from);
@@ -244,10 +289,9 @@ export function callTrace(index: FunctionIndex, start: { path: string; line: num
       node.height = rowHeight(node.rows.length);
     }
   }
+  if (direction === "callers" && nodes.length === 1) return { ok: false, reason: `Nothing in this workspace calls ${nameOfFn(root)} (that Tracer can link by name).` };
   layoutFlow(nodes, edges);
-  return {
-    ok: true,
-    truncated,
-    diagram: { version: 1, title: `Calls from ${nameOfFn(root)}`, nodes, edges, meta: { generated: { by: "tracer", path: start.path, scope: `trace depth ${depth}` } } },
-  };
+  const title = direction === "callers" ? `Callers of ${nameOfFn(root)}` : `Calls from ${nameOfFn(root)}`;
+  const scope = direction === "callers" ? `callers depth ${depth}` : `trace depth ${depth}`;
+  return { ok: true, truncated, diagram: { version: 1, title, nodes, edges, meta: { generated: { by: "tracer", path: start.path, scope } } } };
 }

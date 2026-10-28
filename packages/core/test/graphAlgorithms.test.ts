@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { codeGraphSchema, cycleEdgeKeys, edgeKey, findCycles, isTestFile, localGraph, topFolder } from "../src";
+import { codeGraphSchema, cycleEdgeKeys, edgeKey, fileImpact, findCycles, isTestFile, localGraph, topFolder } from "../src";
 
 const E = (pairs: string): { source: string; target: string }[] =>
   pairs.split(" ").map((p) => {
@@ -47,8 +47,16 @@ describe("localGraph", () => {
 
 describe("graph helpers", () => {
   it("isTestFile", () => {
-    expect(["a.test.ts", "src/b.spec.tsx", "src/__tests__/c.ts", "x.test.mjs"].every(isTestFile)).toBe(true);
-    expect(["test.ts", "src/testing/a.ts", "contest.ts"].some(isTestFile)).toBe(false);
+    const tests = ["a.test.ts", "src/b.spec.tsx", "src/__tests__/c.ts", "x.test.mjs", "pkg/order_test.go", "app/test_api.py", "app/api_test.py"];
+    tests.push("src/test/java/OrderServiceTest.java", "Billing.Tests/InvoiceTests.cs", "spec/models/user_spec.rb", "tests/integration.rs", "lib/a_test.dart");
+    expect(tests.filter((t) => !isTestFile(t))).toEqual([]);
+    expect(["test.ts", "src/testing/a.ts", "contest.ts", "Contest.java", "Manifest.kt", "src/latest.py", "attestation.go"].some(isTestFile)).toBe(false);
+  });
+  it("fileImpact walks importers transitively, through cycles, and picks out tests", () => {
+    // d imports c, c imports a; b imports a twice-over; cycle a<->x; t is a test reaching a via c
+    const edges = E("c>a b>a b>a d>c x>a a>x t.test.ts>c z>q");
+    expect(fileImpact("a", edges)).toEqual({ dependents: ["b", "c", "x"], affected: ["b", "c", "d", "t.test.ts", "x"], tests: ["t.test.ts"] });
+    expect(fileImpact("d", edges)).toEqual({ dependents: [], affected: [], tests: [] });
   });
   it("topFolder", () => expect([topFolder("src/a/b.ts"), topFolder("main.ts")]).toEqual(["src", "(root)"]));
   it("codeGraphSchema rejects a graph.json that is not ours", () => {

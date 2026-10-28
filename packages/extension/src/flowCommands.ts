@@ -47,12 +47,12 @@ export class FlowCommands {
     return this.run(editor.document, { kind: "function", line: p.line + 1, column: p.character });
   }
 
-  /** The functions the cursor's function calls, across files, as a tree. */
-  async traceCalls(): Promise<FlowCommandResult> {
+  /** The functions the cursor's function calls (`trace`), or that call it (`callers`), across files, as a tree. */
+  async traceCalls(kind: "trace" | "callers" = "trace"): Promise<FlowCommandResult> {
     const editor = codeEditor();
     if (!editor) return this.fail("Open a code file first.");
-    const p = editor.selection.active;
-    return this.run(editor.document, { kind: "trace", line: p.line + 1, column: p.character });
+    const at = { line: editor.selection.active.line + 1, column: editor.selection.active.character };
+    return this.run(editor.document, kind === "callers" ? { kind, ...at } : { kind, ...at }); // two literals: FlowTarget stays discriminated
   }
 
   private fail(reason: string): FlowCommandResult {

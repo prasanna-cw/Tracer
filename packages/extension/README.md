@@ -41,7 +41,7 @@ Select a few lines and run **Show Flow** to draw just those lines.
 
 ### Trace calls across files
 
-**Tracer → Trace Calls From This Function** follows the call chain through your workspace (Controller → Service → Repository), coloured by role, up to the depth you set.
+**Tracer → Trace Calls From This Function** follows the call chain through your workspace (Controller → Service → Repository), coloured by role, up to the depth you set. **Trace Callers of This Function** goes the other way: who calls this function, and who calls them.
 
 ![Call trace across files](https://raw.githubusercontent.com/prasanna-cw/Tracer/main/packages/extension/media/screenshots/trace.png)
 
@@ -98,6 +98,7 @@ Diagrams follow your VS Code theme, or force one with the `tracer.theme` setting
 | Understand a function | Cursor in it → right-click → **Tracer → Show Flow** |
 | Understand a few lines | Select them → **Tracer → Show Flow** |
 | See what a function ends up calling | **Tracer → Trace Calls From This Function** |
+| See who calls a function | **Tracer → Trace Callers of This Function** |
 | Understand a file | Right-click it in the explorer → **Tracer → Show Flow** |
 | See how a repo is organised | **Tracer** icon in the activity bar, or **Tracer: Open Map** |
 | Keep a diagram | **Save** in the flow panel (writes `*.diagram.json`) |
@@ -115,7 +116,7 @@ Diagrams follow your VS Code theme, or force one with the `tracer.theme` setting
 | Setting | Default | What it does |
 | --- | --- | --- |
 | `tracer.theme` | `auto` | `auto` follows VS Code; or force `light` / `dark` |
-| `tracer.flow.traceDepth` | `4` | How many call levels **Trace Calls** follows (1–8) |
+| `tracer.flow.traceDepth` | `4` | How many call levels **Trace Calls** and **Trace Callers** follow (1–8) |
 
 ## Reading a flow
 

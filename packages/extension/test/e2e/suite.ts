@@ -231,6 +231,14 @@ export async function run(): Promise<void> {
     assert.ok(r.ok && r.nodeCount >= 5, `expected at least 5 functions, got ${JSON.stringify(r)}`);
   });
 
+  await test("Trace Callers walks back from the Service to the Controller", async () => {
+    const editor = await vscode.window.showTextDocument(vscode.Uri.joinPath(workspace, "orders-java", "src", "main", "java", "com", "acme", "orders", "service", "OrderService.java"));
+    editor.selection = new vscode.Selection(13, 8, 13, 8); // inside OrderService.place
+    const r = await rendered(await run("tracer.traceCallers"));
+    assert.equal(r.ok && r.title, "Callers of OrderService.place");
+    assert.ok(r.ok && r.titles.includes("OrderController.place"), JSON.stringify(r));
+  });
+
   await test("Show Flow from the explorer menu (a file, not the active editor)", async () => {
     await vscode.commands.executeCommand("workbench.action.closeAllEditors");
     const r = await rendered(await run("tracer.showFlow", CONTROLLER));

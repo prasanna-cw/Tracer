@@ -51,10 +51,11 @@ Repeat analyses are cached on disk (`~/.tracer/cache`, keyed by file size and mo
 | Pan / zoom | drag the background, mouse wheel; **Fit** in the controls |
 | Highlight a file's neighbors | hover it |
 | Imports / imported-by | click a file (the lists are clickable); Esc clears |
+| Change impact | click a file: direct dependents, every file reaching it through imports, and the tests among them |
 | Open source | double-click a file, or **Open source** in the details panel |
 | Move a file | drag it (pinned while dragging) |
 | Find files | search box (path substring); Enter jumps to the first match |
-| Filter | hide orphans, hide tests (`*.test.*`, `*.spec.*`, `__tests__/`), per folder |
+| Filter | hide orphans, hide tests (`*.test.*`, `*_test.*`, `test_*.py`, `*Test.*`, `*Spec.*`, `test/`, `tests/`, `spec/`, `__tests__/`), per folder |
 | Local graph | depth slider 1-3 around the selected file |
 | Cycles | **Highlight cycles** colors import cycles |
 | Layout | center/repel/link force, link distance, node size, label zoom (live) |
@@ -98,6 +99,7 @@ Then, in VS Code:
   - **Show Flow**: with nothing selected, an overview of the file (its functions, what calls what, what it reaches in other files); with lines selected, the control flow of just those lines.
   - **Show Flow of This Function**: the flowchart of the function under the cursor: `if`/`else`, loops (with their back-edge), `switch`/`match`, `try`/`catch`/`finally`, returns and throws. A call that resolves to a function in your workspace links to its definition (click the card, **Open source**).
   - **Trace Calls From This Function**: the call tree across files (Controller → Service → Repository), coloured by role.
+  - **Trace Callers of This Function**: the other way, every function whose calls reach this one (Repository ← Service ← Controller).
   - The diagram opens **beside** your code and is editable; **Save** writes a `.diagram.json` you can keep and annotate.
   - Also in the explorer: right-click a file for **Show Flow**, a folder for **Open Map** or **Open Graph**.
 - **Tracer: Open Map** (or the Tracer icon in the activity bar): the workspace as an interactive diagram. It opens on the workspace and its biggest folders; **click a folder to open or close it**, and the imports between whatever is visible are rolled up with a count (`app → core: 15`). Click a file to light up just its imports and importers (everything else dims) and see its details. **Find a file** opens the folders on the way to it. Big folders show 30 items and a "+ N more" card. Services (folders with a `package.json`, `pom.xml`, `go.mod`, …) are marked with their build system. The **Graph** tab next to it is the free-moving dot view, and **Galaxy** the 3D one (one depth plane per top-level folder/service; rotate, zoom, click to open source). All three refresh automatically as you edit and save; no need to reopen the view.

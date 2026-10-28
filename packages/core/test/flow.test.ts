@@ -170,6 +170,26 @@ describe("calls followed across files (samples/polyglot)", () => {
     expect(t.diagram.nodes.map((n) => n.title).sort()).toEqual(["OrderController.place", "OrderService.place"]);
   });
 
+  it("callers trace walks back Repository -> Service -> Controller, arrows still caller -> callee", () => {
+    const save = index.resolve("repo.save", { path: SERVICE, container: "OrderService" });
+    if (!save) throw new Error("repo.save did not resolve");
+    expect(index.callersOf(save).map((f) => `${f.container}.${f.name}`)).toEqual(["OrderService.place"]);
+    const t = callTrace(index, { path: save.path, line: save.line }, 4, "callers");
+    if (!t.ok) throw new Error(t.reason);
+    expect(t.diagram.title).toBe("Callers of OrderRepository.save");
+    const byTitle = (s: string) => t.diagram.nodes.find((n) => n.title === s)?.id;
+    const has = (a: string, b: string) => t.diagram.edges.some((e) => e.fromNode === byTitle(a) && e.toNode === byTitle(b));
+    expect(has("OrderService.place", "OrderRepository.save") && has("OrderController.place", "OrderService.place")).toBe(true);
+    expect(t.diagram.nodes.find((n) => n.kind === "start")?.title).toBe("OrderRepository.save");
+    const one = callTrace(index, { path: save.path, line: save.line }, 1, "callers");
+    expect(one.ok && one.diagram.nodes.map((n) => n.title).sort()).toEqual(["OrderRepository.save", "OrderService.place"]);
+  });
+
+  it("callers trace says so when nothing calls the function", () => {
+    const t = callTrace(index, { path: CONTROLLER, line: 14 }, 4, "callers");
+    expect(t).toEqual({ ok: false, reason: "Nothing in this workspace calls OrderController.place (that Tracer can link by name)." });
+  });
+
   it("file overview: functions of a file, what calls what inside it, and what it reaches elsewhere", () => {
     const o = fileOverview(files.get(SERVICE) as IndexedFile, index);
     if (!o.ok) throw new Error(o.reason);

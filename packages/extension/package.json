@@ -2,7 +2,7 @@
   "name": "tracer-code-flow",
   "displayName": "Tracer: Code Flow & Map",
   "description": "See how your code flows. Right-click a function for its flowchart, trace calls across files, and map a whole repository. 19 languages, 100% local: no AI, no network, no telemetry.",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "publisher": "PrasannaMurugan",
   "license": "MIT",
   "repository": {
@@ -31,6 +31,7 @@
     "onCommand:tracer.showFlow",
     "onCommand:tracer.showFunctionFlow",
     "onCommand:tracer.traceCalls",
+    "onCommand:tracer.traceCallers",
     "onCommand:tracer.openMap",
     "onCommand:tracer.loadCoverage",
     "onCommand:tracer.newAdr",
@@ -123,6 +124,12 @@
         "title": "Trace Calls From This Function",
         "category": "Tracer",
         "icon": "$(references)"
+      },
+      {
+        "command": "tracer.traceCallers",
+        "title": "Trace Callers of This Function",
+        "category": "Tracer",
+        "icon": "$(call-incoming)"
       }
     ],
     "menus": {
@@ -148,6 +155,10 @@
         },
         {
           "command": "tracer.traceCalls",
+          "when": "editorIsOpen"
+        },
+        {
+          "command": "tracer.traceCallers",
           "when": "editorIsOpen"
         }
       ],
@@ -187,6 +198,10 @@
         {
           "command": "tracer.traceCalls",
           "group": "1_flow@3"
+        },
+        {
+          "command": "tracer.traceCallers",
+          "group": "1_flow@4"
         }
       ]
     },

@@ -273,6 +273,20 @@ Each entry: what, why, alternative considered.
 - **Not done:** status transitions (Accepted/Superseded) are edited by hand, not automated; no sidebar/tree view (a `QuickPick`, same as D-less precedent `tracer.openDiagram`, was enough).
 - **Tested:** `parseAdr`/`slugify`/`nextAdrNumber`/`adrTemplate` are pure and unit-tested; `tracer.newAdr`'s actual file-write is covered end to end (same pattern as D36: the command takes an optional title so a test can supply one directly, bypassing the input box, the same way `tracer.openGraph` already takes an optional target `Uri`).
 
+## D41. Change impact: a reverse walk over the import graph
+
+- **What:** `fileImpact` (`core/graph/algorithms.ts`) walks importers breadth-first from a file and returns its direct dependents, every file that reaches it through imports, and the test files among those. The Graph tab's details panel shows `N direct · N affected · N tests`, then lists the tests and (when it adds anything beyond "Imported by") all affected files. Pure and unit-tested, including cycles and duplicate edges. It uses the whole graph, never the view's filters: hiding tests must not make a change look safer.
+- **`isTestFile` widened:** it only knew JS/TS conventions, so in a polyglot repo "tests affected" would read 0 and **Hide tests** hid nothing outside JS/TS. It now also matches `_test.*` (Go, Python, Ruby, Dart), `test_*.py`, `FooTest(s).*`/`FooSpec.*` (JVM, .NET, PHP), and `test/`, `tests/`, `spec/` folders.
+- **Honest limit:** this is import reachability, an upper bound on what can break through code references and a lower bound overall: HTTP/queue calls, reflection, DI wiring and config are not seen (D34).
+- **Not done:** the Map's file cards and Galaxy don't show it yet; no git co-change signal (would need `git log`, still local).
+
+## D42. Trace Callers: the call index, walked backwards
+
+- **What:** `FunctionIndex.callersOf` (`engine/overview.ts`) resolves every call in the workspace once, on first use, through the same `resolve` Trace Calls uses, and keeps target → callers. `callTrace(…, "callers")` walks it breadth-first with the same depth setting, node cap and role colours; arrows still point caller → callee, so dagre puts the callers above the function. **Tracer: Trace Callers of This Function** sits next to Trace Calls in the editor menu.
+- **No new guessing:** a caller is listed only when its call resolves unambiguously (D31). An ambiguous or common-name call (`x.get()`) is missed rather than shown wrongly, so the answer is "these call it", never "only these call it". When nothing resolves, the command says so instead of drawing one lonely card.
+- **Found by the integration test, not the unit test:** `flow()` worked out the open file's path inside the workspace with a string prefix (`uri.path.startsWith(root.path)`), which fails when the editor's path and the folder's differ in drive-letter case or by a junction (D32). The file then fell back to its bare name and was added to the index a second time, under a key nothing links to. Trace Calls never showed it (outgoing calls resolve by name across the whole index); Trace Callers returned nothing. Fixed at the source with `vscode.workspace.asRelativePath`, the same containment test that already put the file in the workspace.
+- **Limit (`ponytail:` in code):** the reverse map is rebuilt with the index on each run (the index itself is rebuilt per flow). Cache it beside the index in `FlowService` if it shows up on big repos.
+
 ## Phase 3 seams (not built)
 
 - **Staleness:** extend `source` with `hash` (content hash of the referenced range or file). The host recomputes and the canvas badges nodes whose hash differs. Because `source` is loose today, adding the field is backward compatible.

@@ -42,6 +42,7 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("tracer.showFlow", (resource?: unknown) => flows.showFlow(resource)),
     vscode.commands.registerCommand("tracer.showFunctionFlow", () => flows.showFunctionFlow()),
     vscode.commands.registerCommand("tracer.traceCalls", () => flows.traceCalls()),
+    vscode.commands.registerCommand("tracer.traceCallers", () => flows.traceCalls("callers")),
   );
 
   const sidebar = new SidebarProvider();

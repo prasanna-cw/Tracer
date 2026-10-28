@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.0.8
+
+- **Trace Callers of This Function**: the other direction of Trace Calls. Right-click in a function to see every function that calls it, and who calls those, across files.
+- **Change impact** in the Graph's file details: how many files import this one directly, how many reach it through other files, and which tests are among them (clickable).
+- Test files are recognised in every language now (`_test.go`, `test_*.py`, `FooTest.java`, `*_spec.rb`, `tests/` folders…), so **Hide tests** works outside JavaScript/TypeScript too.
+- Fixed: in some setups (drive-letter case, folders opened through a link) the file you were editing was indexed twice, so calls into it were not linked.
+
 ## 0.0.7
 
 - **Galaxy**: a third tab next to Map and Graph — the same workspace in 3D, one depth plane per top-level folder/service. Rotate, zoom, hover and click to open source. Loaded only when you open it, so it adds nothing to Map/Graph's own load time.

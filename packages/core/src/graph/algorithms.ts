@@ -100,7 +100,34 @@ export function localGraph(start: string, edges: readonly CodeGraphEdge[], depth
   return seen;
 }
 
-const TEST_FILE = /(^|\/)__tests__\/|\.(test|spec)\.[cm]?[jt]sx?$/;
+/**
+ * What changing `id` can break: files importing it directly, every file reaching it through imports,
+ * and the test files among those. Uses the whole graph, never the view's filters.
+ */
+export function fileImpact(id: string, edges: readonly CodeGraphEdge[]): { dependents: string[]; affected: string[]; tests: string[] } {
+  const importers = new Map<string, string[]>();
+  for (const e of edges) {
+    const list = importers.get(e.target);
+    if (list) list.push(e.source);
+    else importers.set(e.target, [e.source]);
+  }
+  const seen = new Set([id]);
+  const queue = [id];
+  for (let cur = queue.shift(); cur !== undefined; cur = queue.shift()) {
+    for (const s of importers.get(cur) ?? []) {
+      if (!seen.has(s)) {
+        seen.add(s);
+        queue.push(s);
+      }
+    }
+  }
+  seen.delete(id);
+  const affected = [...seen].sort();
+  return { dependents: [...new Set(importers.get(id))].filter((s) => s !== id).sort(), affected, tests: affected.filter(isTestFile) };
+}
+
+// JS/TS `.test.`/`.spec.`, Go/Python/Ruby/Dart `_test.`, pytest `test_*.py`, JVM/.NET/PHP `FooTest(s)`/`FooSpec`, test folders.
+const TEST_FILE = /(^|\/)(__tests__|tests?|spec)\/|\.(test|spec)\.[cm]?[jt]sx?$|_(test|spec)\.\w+$|(^|\/)test_[^/]*\.py$|[a-z0-9](Tests?|Spec)\.\w+$/;
 export const isTestFile = (path: string): boolean => TEST_FILE.test(path);
 
 /** First path segment, or "(root)" for files at the top level; drives the per-folder colors and filters. */

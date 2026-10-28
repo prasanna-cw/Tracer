@@ -18,7 +18,8 @@ export type FlowTarget =
   | { kind: "file" }
   | { kind: "function"; line: number; column: number }
   | { kind: "selection"; startLine: number; endLine: number }
-  | { kind: "trace"; line: number; column: number };
+  | { kind: "trace"; line: number; column: number }
+  | { kind: "callers"; line: number; column: number };
 
 /**
  * `partial`: the workspace index was not ready, so calls into other files are not linked yet.
@@ -161,7 +162,7 @@ export class FlowService implements vscode.Disposable {
     return files;
   }
 
-  /** Waits for the index, with a notification the user can cancel (Trace Calls needs every file). */
+  /** Waits for the index, with a notification the user can cancel (the call traces need every file). */
   private async indexWaiting(root: vscode.Uri): Promise<Map<string, IndexedFile> | undefined> {
     const known = await this.indexNow(root);
     if (known) return known;
@@ -183,11 +184,14 @@ export class FlowService implements vscode.Disposable {
     if (!languageForPath(uri.path)) return { ok: false, reason: unsupported(uri) };
     const folder = vscode.workspace.getWorkspaceFolder(uri);
     const root = this.rootFor(uri);
-    const rootRel = folder && uri.path.startsWith(`${root.path}/`) ? uri.path.slice(root.path.length + 1) : uri.path.slice(uri.path.lastIndexOf("/") + 1);
+    // VS Code's own containment test, not a string prefix: the editor's path and the folder's can differ in drive-letter
+    // case or by a junction, and a wrong `rootRel` re-adds the open file under a second key that no call links to.
+    const rootRel = folder ? toPosix(vscode.workspace.asRelativePath(uri, false)) : uri.path.slice(uri.path.lastIndexOf("/") + 1);
     const engine = await this.getEngine();
     // A file outside every workspace folder: just that file (indexing its folder could mean the whole Desktop).
-    const base = !folder ? NO_INDEX : target.kind === "trace" ? await this.indexWaiting(root) : ((await this.indexNow(root)) ?? NO_INDEX);
-    if (!base) return { ok: false, reason: "Cancelled.", cancelled: true }; // only Trace Calls waits, and the user stopped it
+    const traces = target.kind === "trace" || target.kind === "callers";
+    const base = !folder ? NO_INDEX : traces ? await this.indexWaiting(root) : ((await this.indexNow(root)) ?? NO_INDEX);
+    if (!base) return { ok: false, reason: "Cancelled.", cancelled: true }; // only the traces wait, and the user stopped it
     const key = root.toString();
     const partial = !!folder && this.indexes.has(key) && !this.ready.has(key); // a build is running (a failed one is forgotten)
     const files = new Map(base);
@@ -201,10 +205,10 @@ export class FlowService implements vscode.Disposable {
       const r = fileOverview(file, index);
       return r.ok ? { ok: true, diagram: r.diagram, truncated: r.truncated, root, partial } : r;
     }
-    if (target.kind === "trace") {
+    if (target.kind === "trace" || target.kind === "callers") {
       // The same cursor rules as a function flow (decorator lines, callbacks), then the trace from that function.
       const fn = await engine.functionAt(rootRel, text, target.line, target.column);
-      const r = callTrace(index, { path: rootRel, line: fn?.line ?? target.line }, traceDepth);
+      const r = callTrace(index, { path: rootRel, line: fn?.line ?? target.line }, traceDepth, target.kind === "callers" ? "callers" : "calls");
       return r.ok ? { ok: true, diagram: r.diagram, truncated: r.truncated, root, partial } : r;
     }
     const r = await engine.flow(rootRel, text, target, index.resolve);

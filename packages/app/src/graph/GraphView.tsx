@@ -3,7 +3,7 @@ import { drag } from "d3-drag";
 import { quadtree, type Quadtree } from "d3-quadtree";
 import { pointer, select } from "d3-selection";
 import { zoom, zoomIdentity, type ZoomBehavior, type ZoomTransform } from "d3-zoom";
-import { cycleEdgeKeys, edgeKey, findCycles, type CodeGraph } from "@tracer/core";
+import { cycleEdgeKeys, edgeKey, fileImpact, findCycles, type CodeGraph } from "@tracer/core";
 import type { HostAdapter } from "../host/HostAdapter";
 import { Icon, IconButton } from "../ui/Icon";
 import { groupResolver, neighborsOf, searchMatches, visibleNodeIds } from "./graphModel";
@@ -515,7 +515,7 @@ function GraphExplorer({ graph, theme, onOpenSource }: { graph: CodeGraph; theme
         </div>
 
         <div className="chip-row" role="group" aria-label="Filters">
-          <button type="button" className="chip-toggle" aria-pressed={hideTests} onClick={() => setHideTests((v) => !v)} title="Hide *.test.*, *.spec.* and __tests__/">
+          <button type="button" className="chip-toggle" aria-pressed={hideTests} onClick={() => setHideTests((v) => !v)} title="Hide test files: *.test.*, *_test.*, test_*.py, *Test(s).*, *Spec.*, and test/, tests/, spec/, __tests__/ folders">
             <Icon name="beaker" />
             Hide tests
           </button>
@@ -627,6 +627,7 @@ function GraphSidePanel(p: {
 }) {
   const node = p.graph.nodes.find((n) => n.id === p.id);
   const { imports, importedBy } = useMemo(() => neighborsOf(p.graph, p.id), [p.graph, p.id]);
+  const impact = useMemo(() => fileImpact(p.id, p.graph.edges), [p.graph, p.id]);
   const unresolved = p.graph.summary.unresolved.filter((u) => u.from === p.id);
   if (!node) return null;
   const list = (title: string, ids: string[]) => (
@@ -666,8 +667,16 @@ function GraphSidePanel(p: {
         <Icon name="go-to-file" />
         Open source
       </button>
+      <section aria-label="Change impact">
+        <h3>Change impact</h3>
+        <p className="muted" title="Files that import this one, directly or through other files. From imports only: calls over HTTP, reflection or config are not seen.">
+          {impact.dependents.length} direct · {impact.affected.length} affected · {impact.tests.length} test{impact.tests.length === 1 ? "" : "s"}
+        </p>
+      </section>
       {list("Imports", imports)}
       {list("Imported by", importedBy)}
+      {impact.tests.length > 0 && list("Tests affected", impact.tests)}
+      {impact.affected.length > importedBy.length && list("All affected files", impact.affected)}
       {unresolved.length > 0 && (
         <section>
           <h3>Unresolved · {unresolved.length}</h3>

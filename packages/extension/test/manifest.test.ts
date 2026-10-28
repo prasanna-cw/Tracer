@@ -27,7 +27,7 @@ describe("extension manifest", () => {
     for (const entries of Object.values(menus)) for (const m of entries) if (m.command) expect(declared.has(m.command), m.command).toBe(true);
     expect(menus["editor/context"]?.[0]?.submenu).toBe("tracer.editorMenu");
     expect(submenus.map((s) => s.id)).toContain("tracer.editorMenu");
-    expect(menus["tracer.editorMenu"]?.map((m) => m.command)).toEqual(["tracer.showFlow", "tracer.showFunctionFlow", "tracer.traceCalls"]);
+    expect(menus["tracer.editorMenu"]?.map((m) => m.command)).toEqual(["tracer.showFlow", "tracer.showFunctionFlow", "tracer.traceCalls", "tracer.traceCallers"]);
   });
 
   it("Show Flow is also in the explorer menu for files, and Open Graph for folders", () => {
