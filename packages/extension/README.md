@@ -61,6 +61,8 @@ Open the **Tracer** icon in the activity bar, or run **Tracer: Open Map**. Folde
 
 The **Graph** tab is the free-moving view of every file: hover to highlight neighbours, drag to rearrange, search, hide tests and orphans, highlight import cycles. It glides smoothly even with thousands of files.
 
+Click a file for its **change impact** before you touch it: how many files import it directly, how many reach it through other files, and which tests are among them.
+
 ![Import graph](https://raw.githubusercontent.com/prasanna-cw/Tracer/main/packages/extension/media/screenshots/graph.png)
 
 Map and Graph stay current: edit and save a file, and the open view updates on its own, no need to reopen it. Repeat opens of a workspace you've already analyzed are near-instant too, since unchanged files are never reparsed.
@@ -101,6 +103,7 @@ Diagrams follow your VS Code theme, or force one with the `tracer.theme` setting
 | See who calls a function | **Tracer → Trace Callers of This Function** |
 | Understand a file | Right-click it in the explorer → **Tracer → Show Flow** |
 | See how a repo is organised | **Tracer** icon in the activity bar, or **Tracer: Open Map** |
+| Know what a change could break | **Graph** tab → click the file → **Change impact** |
 | Keep a diagram | **Save** in the flow panel (writes `*.diagram.json`) |
 
 ## Languages

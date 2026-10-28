@@ -1,6 +1,18 @@
 # Tracer
 
-Diagram canvas and code-graph prototype. It will become a VS Code extension later.
+**See how your code flows.** A VS Code extension that draws the flowchart of a function, the call chain across files in both directions, and an interactive map of a whole repository, in 19 languages. 100% local: no AI, no network, no telemetry.
+
+[Install from the Marketplace](https://marketplace.visualstudio.com/items?itemName=PrasannaMurugan.tracer-code-flow) · [Feature tour with screenshots](packages/extension/README.md) · [Why things are built the way they are](docs/DECISIONS.md)
+
+| | What you get |
+| --- | --- |
+| **Functions** | Show Flow: a function's `if`/loops/`switch`/`try`/returns as a diagram beside the code; calls link to their definitions |
+| **Calls** | Trace Calls (what this function reaches) and Trace Callers (what reaches it), across files, coloured by role |
+| **Repository** | Map (folders as cards, imports rolled up with counts), Graph (every file, cycles, filters, change impact), Galaxy (the same in 3D), all live-refreshing |
+| **Context** | Markdown docs and docker-compose linked into the graph, lcov/Cobertura coverage on the map, ADRs as plain Markdown |
+| **Diagrams** | Editable and savable (`.diagram.json`), JSON Canvas import/export, PNG/SVG export, light and dark |
+
+Tested on a 6,000-file, 8-language workspace (D34) and 15,000-line files. Everything below is for working on Tracer itself.
 
 Requires Node 20.19+ and npm 10+.
 
